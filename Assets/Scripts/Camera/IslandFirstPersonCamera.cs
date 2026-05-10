@@ -15,6 +15,7 @@ namespace PrivateIsland
         [SerializeField] private bool lockCursorWhilePlaying = true;
 
         private IslandCharacterController cachedController;
+        private bool inputSuspended;
 
         public void Configure(Transform target, Vector3 targetViewOffset, float targetYaw, float targetPitch)
         {
@@ -24,6 +25,11 @@ namespace PrivateIsland
             pitch = Mathf.Clamp(targetPitch, minPitch, maxPitch);
             CacheController();
             ApplyTransform();
+        }
+
+        public void SetInputSuspended(bool suspended)
+        {
+            inputSuspended = suspended;
         }
 
         private void OnEnable()
@@ -60,9 +66,12 @@ namespace PrivateIsland
 
             if (Application.isPlaying)
             {
-                HandleCursorState();
+                if (!inputSuspended)
+                {
+                    HandleCursorState();
+                }
 
-                if (Cursor.lockState == CursorLockMode.Locked)
+                if (!inputSuspended && Cursor.lockState == CursorLockMode.Locked)
                 {
                     yaw += Input.GetAxis("Mouse X") * lookSensitivity;
                     pitch -= Input.GetAxis("Mouse Y") * lookSensitivity;

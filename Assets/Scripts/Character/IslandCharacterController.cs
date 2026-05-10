@@ -13,6 +13,7 @@ namespace PrivateIsland
         private Camera cachedCamera;
         private float viewYaw;
         private bool hasViewYaw;
+        private bool inputEnabled = true;
 
         public void Configure(float terrainSize, float terrainPeakHeight)
         {
@@ -28,6 +29,11 @@ namespace PrivateIsland
             ApplyViewRotation();
         }
 
+        public void SetInputEnabled(bool enabled)
+        {
+            inputEnabled = enabled;
+        }
+
         private void OnEnable()
         {
             SnapToGround();
@@ -38,6 +44,13 @@ namespace PrivateIsland
             if (!Application.isPlaying)
             {
                 SnapToGround();
+                return;
+            }
+
+            if (!inputEnabled)
+            {
+                SnapToGround();
+                ApplyViewRotation();
                 return;
             }
 
