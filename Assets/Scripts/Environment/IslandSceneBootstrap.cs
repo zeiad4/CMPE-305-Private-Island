@@ -313,6 +313,7 @@ namespace PrivateIsland
 
             MeshFilter filter = GetOrAddComponent<MeshFilter>(terrainRoot.gameObject);
             MeshRenderer renderer = GetOrAddComponent<MeshRenderer>(terrainRoot.gameObject);
+            MeshCollider collider = GetOrAddComponent<MeshCollider>(terrainRoot.gameObject);
 
             terrainMesh ??= CreateRuntimeMesh("Generated Island Terrain");
             terrainTexture ??= CreateRuntimeTexture("Generated Island Texture");
@@ -328,6 +329,8 @@ namespace PrivateIsland
 
             filter.sharedMesh = terrainMesh;
             renderer.sharedMaterial = terrainMaterial;
+            collider.sharedMesh = null;
+            collider.sharedMesh = terrainMesh;
         }
 
         private void BuildWater()
@@ -534,6 +537,9 @@ namespace PrivateIsland
 
             IslandCharacterController controller = GetOrAddComponent<IslandCharacterController>(characterRoot.gameObject);
             controller.Configure(islandSize, peakHeight);
+            GetOrAddComponent<IslandPlayerInteractor>(characterRoot.gameObject);
+            IslandShorelineFootsteps shorelineFootsteps = GetOrAddComponent<IslandShorelineFootsteps>(characterRoot.gameObject);
+            shorelineFootsteps.Configure(islandSize, peakHeight, seaLevel);
             characterRoot.tag = "Player";
         }
 
@@ -602,6 +608,9 @@ namespace PrivateIsland
             }
 
             CreateRockDebrisRing(rock.transform, scale, mainTint, shadowTint, random);
+
+            IslandRockInteraction interaction = GetOrAddComponent<IslandRockInteraction>(rock);
+            interaction.Configure(Mathf.Clamp(scale * 1.18f, 2.2f, 4.6f), scale);
         }
 
         private void CreateRoundedRockVariant(
@@ -757,6 +766,9 @@ namespace PrivateIsland
                 coconut.transform.localScale = new Vector3(0.18f, 0.22f, 0.18f);
                 ApplyTint(coconut, new Color(0.39f, 0.26f, 0.14f));
             }
+
+            IslandPalmInteraction interaction = GetOrAddComponent<IslandPalmInteraction>(palm);
+            interaction.Configure(Mathf.Clamp(height * 0.74f, 3f, 5.5f), height);
         }
 
         private void CreateBush(Transform parent, Vector3 position, float scale, float yaw, System.Random random)
@@ -784,6 +796,9 @@ namespace PrivateIsland
                     CreateWildBushVariant(bush.transform, scale, random);
                     break;
             }
+
+            IslandBushReactive interaction = GetOrAddComponent<IslandBushReactive>(bush);
+            interaction.Configure(Mathf.Clamp(scale * 0.92f, 1.1f, 2.15f));
         }
 
         private void CreateRoundedBushVariant(Transform parent, float scale, System.Random random)
@@ -1009,6 +1024,9 @@ namespace PrivateIsland
             driftwood.transform.localPosition = position + new Vector3(0f, 0.18f, 0f);
             driftwood.transform.localRotation = Quaternion.Euler(82f, yaw, 14f);
             driftwood.transform.localScale = new Vector3(0.18f, length * 0.5f, 0.18f);
+
+            IslandDriftwoodInteraction interaction = GetOrAddComponent<IslandDriftwoodInteraction>(driftwood);
+            interaction.Configure(Mathf.Clamp(length * 0.72f, 2f, 3.4f));
         }
 
         private void CreatePebble(Transform parent, Vector3 position, float scale, float yaw)
