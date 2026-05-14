@@ -14,6 +14,11 @@ namespace PrivateIsland
         private float viewYaw;
         private bool hasViewYaw;
         private bool inputEnabled = true;
+        private Vector3 currentVelocity;
+        private Vector3 previousPosition;
+
+        public bool IsInputEnabled => inputEnabled;
+        public Vector3 CurrentVelocity => currentVelocity;
 
         public void Configure(float terrainSize, float terrainPeakHeight)
         {
@@ -37,6 +42,8 @@ namespace PrivateIsland
         private void OnEnable()
         {
             SnapToGround();
+            previousPosition = transform.position;
+            currentVelocity = Vector3.zero;
         }
 
         private void Update()
@@ -44,6 +51,8 @@ namespace PrivateIsland
             if (!Application.isPlaying)
             {
                 SnapToGround();
+                currentVelocity = Vector3.zero;
+                previousPosition = transform.position;
                 return;
             }
 
@@ -51,6 +60,8 @@ namespace PrivateIsland
             {
                 SnapToGround();
                 ApplyViewRotation();
+                currentVelocity = Vector3.zero;
+                previousPosition = transform.position;
                 return;
             }
 
@@ -67,6 +78,7 @@ namespace PrivateIsland
             }
 
             ApplyViewRotation();
+            UpdateVelocity();
         }
 
         private void Move(Vector3 moveDirection)
@@ -168,6 +180,13 @@ namespace PrivateIsland
         private float SampleGroundHeight(Vector3 position)
         {
             return IslandMeshBuilder.SampleHeight(position.x, position.z, islandSize, peakHeight);
+        }
+
+        private void UpdateVelocity()
+        {
+            float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
+            currentVelocity = (transform.position - previousPosition) / deltaTime;
+            previousPosition = transform.position;
         }
     }
 }
