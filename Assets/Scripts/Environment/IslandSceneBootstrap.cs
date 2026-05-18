@@ -44,6 +44,9 @@ namespace PrivateIsland
         private Material characterShortsMaterial;
         private Material characterStrawMaterial;
         private Material characterHairMaterial;
+        private Material campfireEmberMaterial;
+        private Material campfireAshMaterial;
+        private Material campfireStoneMaterial;
         private bool isRebuilding;
 #if UNITY_EDITOR
         private bool editorRebuildQueued;
@@ -53,6 +56,9 @@ namespace PrivateIsland
         private static Mesh cachedCylinderMesh;
         private static Mesh cachedSphereMesh;
         private static Mesh cachedCapsuleMesh;
+
+        public float IslandSize => islandSize;
+        public float PeakHeight => peakHeight;
 
         private void Reset()
         {
@@ -381,8 +387,10 @@ namespace PrivateIsland
             System.Random random = new System.Random(seed);
             Vector2 dockDirection = new Vector2(0.42f, 0.91f).normalized;
             Vector3 characterSpawn = GetCharacterSpawnPosition(dockDirection);
+            Vector3 campfirePosition = GetCampfirePosition(dockDirection, characterSpawn);
 
             BuildDock(propsRoot, dockDirection);
+            BuildCampfire(propsRoot, campfirePosition, dockDirection);
 
             int placedRocks = 0;
             int rockAttempts = 0;
@@ -499,6 +507,8 @@ namespace PrivateIsland
                 CreateStump(propsRoot, position, scale, angle * Mathf.Rad2Deg);
                 placedStumps++;
             }
+
+            CreateHiddenCollectibles(propsRoot, random, characterSpawn, dockDirection);
         }
 
         private void BuildCharacter()
@@ -537,7 +547,9 @@ namespace PrivateIsland
 
             IslandCharacterController controller = GetOrAddComponent<IslandCharacterController>(characterRoot.gameObject);
             controller.Configure(islandSize, peakHeight);
+            GetOrAddComponent<IslandInventory>(characterRoot.gameObject);
             GetOrAddComponent<IslandPlayerInteractor>(characterRoot.gameObject);
+            GetOrAddComponent<IslandFootstepAudio>(characterRoot.gameObject);
             IslandShorelineFootsteps shorelineFootsteps = GetOrAddComponent<IslandShorelineFootsteps>(characterRoot.gameObject);
             shorelineFootsteps.Configure(islandSize, peakHeight, seaLevel);
             characterRoot.tag = "Player";
@@ -611,6 +623,7 @@ namespace PrivateIsland
 
             IslandRockInteraction interaction = GetOrAddComponent<IslandRockInteraction>(rock);
             interaction.Configure(Mathf.Clamp(scale * 1.18f, 2.2f, 4.6f), scale);
+            ConfigureRockObstacleCollider(rock);
         }
 
         private void CreateRoundedRockVariant(
@@ -622,11 +635,11 @@ namespace PrivateIsland
             Color shadowTint,
             System.Random random)
         {
-            CreateRockPiece(parent, "Core", PrimitiveType.Sphere, new Vector3(0f, scale * 0.34f, 0f), new Vector3(scale * 0.96f, scale * 0.62f, scale * 0.88f), new Vector3(-6f, 14f, 4f), mainTint);
-            CreateRockPiece(parent, "ShoulderA", PrimitiveType.Sphere, new Vector3(-scale * 0.3f, scale * 0.3f, scale * 0.16f), new Vector3(scale * 0.54f, scale * 0.38f, scale * 0.5f), new Vector3(14f, -8f, 18f), coolTint);
-            CreateRockPiece(parent, "ShoulderB", PrimitiveType.Sphere, new Vector3(scale * 0.26f, scale * 0.28f, -scale * 0.12f), new Vector3(scale * 0.5f, scale * 0.36f, scale * 0.44f), new Vector3(-12f, 22f, -10f), shadowTint);
-            CreateRockPiece(parent, "Cap", PrimitiveType.Capsule, new Vector3(scale * 0.04f, scale * 0.56f, scale * 0.02f), new Vector3(scale * 0.28f, scale * 0.22f, scale * 0.34f), new Vector3(18f, 10f, -8f), warmTint);
-            CreateRockPiece(parent, "Wedge", PrimitiveType.Cube, new Vector3(-scale * 0.14f, scale * 0.2f, scale * 0.34f), new Vector3(scale * 0.34f, scale * 0.12f, scale * 0.24f), new Vector3(8f, -16f, 14f), new Color(0.64f, 0.61f, 0.56f));
+            CreateRockPiece(parent, "Core", PrimitiveType.Cube, new Vector3(0f, scale * 0.3f, 0f), new Vector3(scale * 0.92f, scale * 0.48f, scale * 0.76f), new Vector3(-8f, 18f, 4f), mainTint);
+            CreateRockPiece(parent, "ShoulderA", PrimitiveType.Cube, new Vector3(-scale * 0.26f, scale * 0.28f, scale * 0.16f), new Vector3(scale * 0.42f, scale * 0.28f, scale * 0.34f), new Vector3(18f, -10f, 16f), coolTint);
+            CreateRockPiece(parent, "ShoulderB", PrimitiveType.Cube, new Vector3(scale * 0.24f, scale * 0.26f, -scale * 0.1f), new Vector3(scale * 0.4f, scale * 0.26f, scale * 0.3f), new Vector3(-14f, 24f, -12f), shadowTint);
+            CreateRockPiece(parent, "Cap", PrimitiveType.Cube, new Vector3(scale * 0.04f, scale * 0.52f, scale * 0.02f), new Vector3(scale * 0.24f, scale * 0.12f, scale * 0.24f), new Vector3(22f, 12f, -6f), warmTint);
+            CreateRockPiece(parent, "Wedge", PrimitiveType.Cube, new Vector3(-scale * 0.1f, scale * 0.2f, scale * 0.28f), new Vector3(scale * 0.26f, scale * 0.1f, scale * 0.18f), new Vector3(12f, -18f, 18f), new Color(0.64f, 0.61f, 0.56f));
         }
 
         private void CreateLayeredRockVariant(
@@ -761,14 +774,17 @@ namespace PrivateIsland
             for (int i = 0; i < 4; i++)
             {
                 float angle = i * 90f;
-                GameObject coconut = CreateMeshPart("Coconut", cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere), rockMaterial, palm.transform);
-                coconut.transform.localPosition = crownCenter + (Quaternion.Euler(0f, angle, 0f) * new Vector3(0.18f, -0.16f, 0.12f));
-                coconut.transform.localScale = new Vector3(0.18f, 0.22f, 0.18f);
-                ApplyTint(coconut, new Color(0.39f, 0.26f, 0.14f));
+                GameObject coconut = new GameObject("Coconut");
+                coconut.transform.SetParent(palm.transform, false);
+                coconut.transform.localPosition = crownCenter + (Quaternion.Euler(0f, angle, 0f) * new Vector3(0.2f, -0.14f, 0.14f));
+                coconut.transform.localRotation = Quaternion.Euler(0f, angle + 24f, 0f);
+                coconut.transform.localScale = Vector3.one * 0.78f;
+                IslandItemCatalog.BuildWorldVisual(IslandItemCatalog.CoconutId, coconut.transform);
             }
 
             IslandPalmInteraction interaction = GetOrAddComponent<IslandPalmInteraction>(palm);
             interaction.Configure(Mathf.Clamp(height * 0.74f, 3f, 5.5f), height);
+            ConfigurePalmObstacleCollider(palm, height);
         }
 
         private void CreateBush(Transform parent, Vector3 position, float scale, float yaw, System.Random random)
@@ -1053,33 +1069,245 @@ namespace PrivateIsland
             top.transform.localScale = new Vector3(scale * 0.22f, scale * 0.05f, scale * 0.22f);
         }
 
+        private void CreateHiddenCollectibles(Transform parent, System.Random random, Vector3 characterSpawn, Vector2 dockDirection)
+        {
+            PlaceHiddenCollectible(parent, IslandItemCatalog.MapId, "HiddenTreasureMap", 1.05f, random, characterSpawn, dockDirection, islandSize * 0.24f, islandSize * 0.42f, seaLevel + 0.75f, peakHeight + 1.2f);
+            PlaceHiddenCollectible(parent, IslandItemCatalog.CompassId, "HiddenCompass", 0.95f, random, characterSpawn, dockDirection, islandSize * 0.2f, islandSize * 0.45f, seaLevel + 0.45f, peakHeight + 1.2f);
+            PlaceHiddenCollectible(parent, IslandItemCatalog.TorchId, "HiddenTorch", 1.02f, random, characterSpawn, dockDirection, islandSize * 0.34f, islandSize * 0.48f, seaLevel - 0.05f, seaLevel + 1.5f);
+            PlaceHiddenCollectible(parent, IslandItemCatalog.CanteenId, "HiddenCanteen", 0.92f, random, characterSpawn, dockDirection, islandSize * 0.26f, islandSize * 0.46f, seaLevel + 0.3f, seaLevel + 2.4f);
+        }
+
+        private void PlaceHiddenCollectible(
+            Transform parent,
+            string itemId,
+            string objectName,
+            float scale,
+            System.Random random,
+            Vector3 characterSpawn,
+            Vector2 dockDirection,
+            float minRadius,
+            float maxRadius,
+            float minHeight,
+            float maxHeight)
+        {
+            for (int attempt = 0; attempt < 36; attempt++)
+            {
+                float angle = RandomRange(random, 0f, Mathf.PI * 2f);
+                float radius = RandomRange(random, minRadius, maxRadius);
+                Vector3 position = SampleSurfacePosition(angle, radius);
+
+                if (position.y < minHeight || position.y > maxHeight || IsNearCharacterSpawn(position, characterSpawn, 11f))
+                {
+                    continue;
+                }
+
+                Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                if (dockDirection.sqrMagnitude > 0.0001f && Vector2.Dot(direction, dockDirection.normalized) > 0.9f)
+                {
+                    continue;
+                }
+
+                IslandWorldItem collectible = IslandWorldItem.SpawnWorldItem(
+                    itemId,
+                    1,
+                    position + new Vector3(0f, 0.04f, 0f),
+                    Quaternion.Euler(0f, RandomRange(random, 0f, 360f), 0f),
+                    false,
+                    false,
+                    Vector3.zero,
+                    Vector3.zero,
+                    -1f,
+                    parent);
+
+                if (collectible != null)
+                {
+                    collectible.name = objectName;
+                    collectible.SetWorldScale(Vector3.one * scale);
+                }
+
+                return;
+            }
+        }
+
+        private void BuildCampfire(Transform parent, Vector3 position, Vector2 dockDirection)
+        {
+            campfireEmberMaterial ??= CreateRuntimeMaterial("Campfire Ember Material");
+            campfireAshMaterial ??= CreateRuntimeMaterial("Campfire Ash Material");
+            campfireStoneMaterial ??= CreateRuntimeMaterial("Campfire Stone Material");
+
+            campfireEmberMaterial.SetColor("_BaseColor", new Color(0.28f, 0.15f, 0.1f));
+            campfireEmberMaterial.SetColor("_EmissionColor", new Color(0.75f, 0.24f, 0.05f) * 0.15f);
+            campfireEmberMaterial.EnableKeyword("_EMISSION");
+            campfireEmberMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            campfireEmberMaterial.SetFloat("_Smoothness", 0.06f);
+
+            campfireAshMaterial.SetColor("_BaseColor", new Color(0.26f, 0.26f, 0.25f));
+            campfireAshMaterial.SetFloat("_Smoothness", 0.02f);
+
+            campfireStoneMaterial.SetColor("_BaseColor", new Color(0.36f, 0.33f, 0.31f));
+            campfireStoneMaterial.SetFloat("_Smoothness", 0.05f);
+
+            GameObject campfire = new GameObject("Campfire");
+            campfire.transform.SetParent(parent, false);
+            campfire.transform.localPosition = position;
+
+            Vector2 forward2D = dockDirection.sqrMagnitude > 0.0001f ? -dockDirection.normalized : new Vector2(-0.42f, -0.91f).normalized;
+            campfire.transform.localRotation = Quaternion.LookRotation(new Vector3(forward2D.x, 0f, forward2D.y));
+
+            GameObject outerPad = CreateMeshPart("OuterPad", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), campfireAshMaterial, campfire.transform);
+            outerPad.transform.localPosition = new Vector3(0f, 0.035f, 0f);
+            outerPad.transform.localScale = new Vector3(2.15f, 0.06f, 2.15f);
+            ApplyTint(outerPad, new Color(0.11f, 0.1f, 0.1f));
+
+            GameObject innerAsh = CreateMeshPart("InnerAsh", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), campfireAshMaterial, campfire.transform);
+            innerAsh.transform.localPosition = new Vector3(0f, 0.07f, 0f);
+            innerAsh.transform.localScale = new Vector3(1.35f, 0.045f, 1.35f);
+            ApplyTint(innerAsh, new Color(0.26f, 0.24f, 0.23f));
+
+            for (int i = 0; i < 12; i++)
+            {
+                float angle = i * 30f;
+                float radius = 1.18f + (0.08f * Mathf.Sin(i * 1.9f));
+                Vector3 localPosition = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, 0.18f + (0.04f * (i % 2)), 0f);
+                GameObject stone = CreateMeshPart($"FireStone_{i}", cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere), campfireStoneMaterial, campfire.transform);
+                stone.transform.localPosition = localPosition;
+                stone.transform.localRotation = Quaternion.Euler(i * 11f, angle, i * 17f);
+                stone.transform.localScale = new Vector3(0.38f, 0.24f, 0.34f) * (1f + ((i % 3) * 0.1f));
+                ApplyTint(stone, Color.Lerp(new Color(0.31f, 0.29f, 0.28f), new Color(0.43f, 0.39f, 0.36f), (i % 4) / 3f));
+            }
+
+            for (int i = 0; i < 3; i++)
+            {
+                float angle = (i * 120f) + 12f;
+                GameObject log = CreateMeshPart($"MainLog_{i}", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), trunkMaterial, campfire.transform);
+                log.transform.localPosition = Quaternion.Euler(0f, angle, 0f) * new Vector3(0.46f, 0.26f + (i * 0.025f), 0f);
+                log.transform.localRotation = Quaternion.Euler(86f, angle, 0f);
+                log.transform.localScale = new Vector3(0.26f, 1.18f, 0.26f);
+                ApplyTint(log, Color.Lerp(new Color(0.34f, 0.23f, 0.13f), new Color(0.19f, 0.13f, 0.08f), i * 0.24f));
+            }
+
+            for (int i = 0; i < 5; i++)
+            {
+                float angle = (i * 72f) + 18f;
+                GameObject kindling = CreateMeshPart($"Kindling_{i}", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), dockMaterial, campfire.transform);
+                kindling.transform.localPosition = new Vector3(0f, 0.2f + (i * 0.035f), 0f);
+                kindling.transform.localRotation = Quaternion.Euler(60f + (i * 6f), angle, 0f);
+                kindling.transform.localScale = new Vector3(0.07f, 0.58f, 0.07f);
+                ApplyTint(kindling, new Color(0.49f, 0.31f, 0.17f));
+            }
+
+            for (int i = 0; i < 7; i++)
+            {
+                float angle = i * (360f / 7f);
+                float radius = 0.18f + (0.06f * (i % 3));
+                GameObject ember = CreateMeshPart($"EmberCoal_{i}", cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere), campfireEmberMaterial, campfire.transform);
+                ember.transform.localPosition = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, 0.13f + (0.04f * (i % 2)), 0f);
+                ember.transform.localScale = new Vector3(0.18f, 0.1f, 0.16f) * (1f + (i * 0.05f));
+            }
+
+            Transform fireAnchor = EnsureChild(campfire.transform, "FireAnchor");
+            fireAnchor.localPosition = new Vector3(0f, 0.34f, 0f);
+
+            GameObject charPatch = CreateMeshPart("CharPatch", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), campfireAshMaterial, campfire.transform);
+            charPatch.transform.localPosition = new Vector3(0f, 0.085f, 0f);
+            charPatch.transform.localScale = new Vector3(0.62f, 0.03f, 0.62f);
+            ApplyTint(charPatch, new Color(0.12f, 0.1f, 0.1f));
+
+            BuildCampfireWoodpile(campfire.transform, dockDirection);
+
+            SphereCollider blocker = GetOrAddComponent<SphereCollider>(campfire);
+            blocker.isTrigger = false;
+            blocker.center = new Vector3(0f, 0.36f, 0f);
+            blocker.radius = 1.3f;
+
+            IslandCampfireInteraction interaction = GetOrAddComponent<IslandCampfireInteraction>(campfire);
+            interaction.Configure(4.9f, 1.55f, false);
+        }
+
+        private void BuildCampfireWoodpile(Transform campfire, Vector2 dockDirection)
+        {
+            Vector2 side = dockDirection.sqrMagnitude > 0.0001f
+                ? new Vector2(-dockDirection.y, dockDirection.x).normalized
+                : Vector2.right;
+
+            CreateCampfireSeatLog(campfire, "SeatLogLeft", new Vector3(side.x * 2.7f, 0.24f, side.y * 2.7f), Quaternion.Euler(90f, 12f, 0f));
+            CreateCampfireSeatLog(campfire, "SeatLogRight", new Vector3(-side.x * 2.7f, 0.24f, -side.y * 2.7f), Quaternion.Euler(90f, -12f, 0f));
+        }
+
+        private void CreateCampfireSeatLog(Transform campfire, string name, Vector3 localPosition, Quaternion localRotation)
+        {
+            GameObject seatLog = CreateMeshPart(name, cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), trunkMaterial, campfire);
+            seatLog.transform.localPosition = localPosition;
+            seatLog.transform.localRotation = localRotation;
+            seatLog.transform.localScale = new Vector3(0.34f, 1.72f, 0.34f);
+            ApplyTint(seatLog, new Color(0.28f, 0.18f, 0.1f));
+
+            CapsuleCollider collider = seatLog.AddComponent<CapsuleCollider>();
+            collider.direction = 2;
+            collider.radius = 0.34f;
+            collider.height = 3.4f;
+            collider.center = Vector3.zero;
+        }
+
+        private Vector3 GetCampfirePosition(Vector2 dockDirection, Vector3 characterSpawn)
+        {
+            Vector2 normalizedDockDirection = dockDirection.sqrMagnitude > 0.0001f
+                ? dockDirection.normalized
+                : new Vector2(0.42f, 0.91f).normalized;
+            Vector2 side = new Vector2(-normalizedDockDirection.y, normalizedDockDirection.x);
+            Vector3 position = characterSpawn + new Vector3(side.x * 6.4f, 0f, side.y * 6.4f) - new Vector3(normalizedDockDirection.x * 2.3f, 0f, normalizedDockDirection.y * 2.3f);
+            position = ClampToIslandBuildPosition(position);
+            position.y = IslandMeshBuilder.SampleHeight(position.x, position.z, islandSize, peakHeight);
+            return position;
+        }
+
+        private Vector3 ClampToIslandBuildPosition(Vector3 position)
+        {
+            Vector2 planar = new Vector2(position.x, position.z);
+            float maxRadius = islandSize * 0.43f;
+            if (planar.magnitude > maxRadius)
+            {
+                planar = planar.normalized * maxRadius;
+            }
+
+            position.x = planar.x;
+            position.z = planar.y;
+            return position;
+        }
+
         private void CreateIslandExplorer(Transform parent)
         {
             GameObject torso = CreateMeshPart("Torso", cachedCapsuleMesh ??= GetPrimitiveMesh(PrimitiveType.Capsule), characterShirtMaterial, parent);
             torso.transform.localPosition = new Vector3(0f, 1.35f, 0f);
             torso.transform.localScale = new Vector3(0.68f, 0.62f, 0.56f);
+            HideFromFirstPerson(torso);
 
             GameObject hips = CreateMeshPart("Hips", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterShortsMaterial, parent);
             hips.transform.localPosition = new Vector3(0f, 0.72f, 0f);
             hips.transform.localScale = new Vector3(0.7f, 0.36f, 0.44f);
+            HideFromFirstPerson(hips);
 
             GameObject leftLeg = CreateMeshPart("LeftLeg", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), characterSkinMaterial, parent);
             leftLeg.transform.localPosition = new Vector3(-0.18f, 0.36f, 0f);
             leftLeg.transform.localScale = new Vector3(0.12f, 0.36f, 0.12f);
+            HideFromFirstPerson(leftLeg);
 
             GameObject rightLeg = CreateMeshPart("RightLeg", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), characterSkinMaterial, parent);
             rightLeg.transform.localPosition = new Vector3(0.18f, 0.36f, 0f);
             rightLeg.transform.localScale = new Vector3(0.12f, 0.36f, 0.12f);
+            HideFromFirstPerson(rightLeg);
 
             GameObject leftArm = CreateMeshPart("LeftArm", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), characterSkinMaterial, parent);
             leftArm.transform.localPosition = new Vector3(-0.5f, 1.36f, 0f);
             leftArm.transform.localRotation = Quaternion.Euler(0f, 0f, 10f);
             leftArm.transform.localScale = new Vector3(0.09f, 0.34f, 0.09f);
+            HideFromFirstPerson(leftArm);
 
             GameObject rightArm = CreateMeshPart("RightArm", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), characterSkinMaterial, parent);
             rightArm.transform.localPosition = new Vector3(0.5f, 1.36f, 0f);
             rightArm.transform.localRotation = Quaternion.Euler(0f, 0f, -10f);
             rightArm.transform.localScale = new Vector3(0.09f, 0.34f, 0.09f);
+            HideFromFirstPerson(rightArm);
 
             GameObject head = CreateMeshPart("Head", cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere), characterSkinMaterial, parent);
             head.transform.localPosition = new Vector3(0f, 2.12f, 0f);
@@ -1104,6 +1332,7 @@ namespace PrivateIsland
             GameObject backpack = CreateMeshPart("Backpack", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), dockMaterial, parent);
             backpack.transform.localPosition = new Vector3(0f, 1.32f, -0.27f);
             backpack.transform.localScale = new Vector3(0.34f, 0.5f, 0.16f);
+            HideFromFirstPerson(backpack);
         }
 
         private static void HideFromFirstPerson(GameObject target)
@@ -1121,6 +1350,34 @@ namespace PrivateIsland
 
             renderer.shadowCastingMode = ShadowCastingMode.ShadowsOnly;
             renderer.receiveShadows = false;
+        }
+
+        private void ConfigureRockObstacleCollider(GameObject rock)
+        {
+            if (rock == null || !IslandInteractionUtility.TryGetCompositeBounds(rock.transform, out Bounds bounds))
+            {
+                return;
+            }
+
+            SphereCollider collider = GetOrAddComponent<SphereCollider>(rock);
+            collider.isTrigger = false;
+            collider.center = rock.transform.InverseTransformPoint(bounds.center);
+            collider.radius = Mathf.Max(0.45f, Mathf.Max(bounds.extents.x, bounds.extents.z) * 0.72f);
+        }
+
+        private void ConfigurePalmObstacleCollider(GameObject palm, float height)
+        {
+            if (palm == null)
+            {
+                return;
+            }
+
+            CapsuleCollider collider = GetOrAddComponent<CapsuleCollider>(palm);
+            collider.isTrigger = false;
+            collider.direction = 1;
+            collider.center = new Vector3(0f, height * 0.46f, 0f);
+            collider.height = Mathf.Max(1.6f, height * 0.9f);
+            collider.radius = Mathf.Clamp(height * 0.045f, 0.22f, 0.34f);
         }
 
         private Vector3 SampleSurfacePosition(float angle, float radius)
@@ -1344,6 +1601,9 @@ namespace PrivateIsland
             ReleaseObject(characterShortsMaterial);
             ReleaseObject(characterStrawMaterial);
             ReleaseObject(characterHairMaterial);
+            ReleaseObject(campfireEmberMaterial);
+            ReleaseObject(campfireAshMaterial);
+            ReleaseObject(campfireStoneMaterial);
 
             terrainMesh = null;
             waterMesh = null;
@@ -1359,6 +1619,9 @@ namespace PrivateIsland
             characterShortsMaterial = null;
             characterStrawMaterial = null;
             characterHairMaterial = null;
+            campfireEmberMaterial = null;
+            campfireAshMaterial = null;
+            campfireStoneMaterial = null;
         }
 
         private static void ReleaseObject(UnityEngine.Object obj)
