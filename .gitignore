@@ -36,3 +36,4 @@ Thumbs.db
 
 # Local Unity recovery data
 /Assets/_Recovery/
+/Assets/_Recovery.meta
