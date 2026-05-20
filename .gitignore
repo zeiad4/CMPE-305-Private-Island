@@ -6,11 +6,15 @@
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 /MemoryCaptures/
+/[Aa]ssets/_Recovery/
 
 # Asset meta files must stay tracked.
 !/[Aa]ssets/**/*.meta
 !/[Pp]ackages/**/*.meta
 !/[Pp]roject[Ss]ettings/**/*.asset
+
+# Keep Unity recovery artifacts out of the repo, including their folder meta.
+/[Aa]ssets/_Recovery.meta
 
 # Visual Studio / Rider
 /.vs/
