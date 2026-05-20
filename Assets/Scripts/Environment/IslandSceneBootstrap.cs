@@ -47,6 +47,11 @@ namespace PrivateIsland
         private Material campfireEmberMaterial;
         private Material campfireAshMaterial;
         private Material campfireStoneMaterial;
+        private Material housePlasterMaterial;
+        private Material houseAccentMaterial;
+        private Material houseWoodMaterial;
+        private Material houseDetailMaterial;
+        private Material houseFloorMaterial;
         private bool isRebuilding;
 #if UNITY_EDITOR
         private bool editorRebuildQueued;
@@ -384,10 +389,41 @@ namespace PrivateIsland
             dockMaterial.SetColor("_BaseColor", new Color(0.52f, 0.38f, 0.24f));
             dockMaterial.SetFloat("_Smoothness", 0.2f);
 
+            housePlasterMaterial ??= CreateRuntimeMaterial("Island House Plaster");
+            houseAccentMaterial ??= CreateRuntimeMaterial("Island House Accent");
+            houseWoodMaterial ??= CreateRuntimeMaterial("Island House Wood");
+            houseDetailMaterial ??= CreateRuntimeMaterial("Island House Detail");
+            houseFloorMaterial ??= CreateRuntimeMaterial("Island House Floor");
+
+            housePlasterMaterial.SetColor("_BaseColor", new Color(0.95f, 0.94f, 0.9f));
+            housePlasterMaterial.SetFloat("_Smoothness", 0.14f);
+            houseAccentMaterial.SetColor("_BaseColor", new Color(0.12f, 0.42f, 0.74f));
+            houseAccentMaterial.SetFloat("_Smoothness", 0.16f);
+            houseWoodMaterial.SetColor("_BaseColor", new Color(0.77f, 0.58f, 0.34f));
+            houseWoodMaterial.SetFloat("_Smoothness", 0.22f);
+            houseDetailMaterial.SetColor("_BaseColor", new Color(0.11f, 0.1f, 0.09f));
+            houseDetailMaterial.SetFloat("_Smoothness", 0.28f);
+            houseFloorMaterial.SetColor("_BaseColor", new Color(0.78f, 0.74f, 0.68f));
+            houseFloorMaterial.SetFloat("_Smoothness", 0.08f);
+
             System.Random random = new System.Random(seed);
             Vector2 dockDirection = new Vector2(0.42f, 0.91f).normalized;
+            Vector2 houseDirection = new Vector2(dockDirection.y, -dockDirection.x).normalized;
             Vector3 characterSpawn = GetCharacterSpawnPosition(dockDirection);
             Vector3 campfirePosition = GetCampfirePosition(dockDirection, characterSpawn);
+            Vector3 housePosition = GetSeasideHousePosition(houseDirection);
+            IslandSeasideHouseResult houseResult = IslandSeasideHouseBuilder.Build(
+                propsRoot,
+                housePosition,
+                new Vector3(houseDirection.x, 0f, houseDirection.y),
+                housePlasterMaterial,
+                houseAccentMaterial,
+                houseWoodMaterial,
+                houseDetailMaterial,
+                houseFloorMaterial);
+            CreateHousePalms(propsRoot, housePosition, houseDirection);
+            ClearSceneFlowersNearHouse(houseResult.Center, houseResult.ClearanceRadius);
+            ClearWeatherGroundEffectsNearHouse(houseResult.Center, houseResult.ClearanceRadius);
 
             BuildDock(propsRoot, dockDirection);
             BuildCampfire(propsRoot, campfirePosition, dockDirection);
@@ -400,7 +436,9 @@ namespace PrivateIsland
                 float radius = Mathf.Lerp(islandSize * 0.14f, islandSize * 0.48f, (float)random.NextDouble());
                 Vector3 position = SampleSurfacePosition(angle, radius);
 
-                if (position.y < seaLevel + 0.2f || IsNearCharacterSpawn(position, characterSpawn, 5.5f))
+                if (position.y < seaLevel + 0.2f ||
+                    IsNearCharacterSpawn(position, characterSpawn, 5.5f) ||
+                    IsNearPosition(position, houseResult.Center, houseResult.ClearanceRadius))
                 {
                     continue;
                 }
@@ -425,7 +463,9 @@ namespace PrivateIsland
                 float radius = Mathf.Lerp(islandSize * 0.1f, islandSize * 0.44f, (float)random.NextDouble());
                 Vector3 position = SampleSurfacePosition(angle, radius);
 
-                if (position.y < seaLevel + 0.7f || IsNearCharacterSpawn(position, characterSpawn, 10f))
+                if (position.y < seaLevel + 0.7f ||
+                    IsNearCharacterSpawn(position, characterSpawn, 10f) ||
+                    IsNearPosition(position, houseResult.Center, houseResult.ClearanceRadius))
                 {
                     continue;
                 }
@@ -444,7 +484,9 @@ namespace PrivateIsland
                 float radius = Mathf.Lerp(islandSize * 0.08f, islandSize * 0.46f, (float)random.NextDouble());
                 Vector3 position = SampleSurfacePosition(angle, radius);
 
-                if (position.y < seaLevel + 0.5f || IsNearCharacterSpawn(position, characterSpawn, 7.5f))
+                if (position.y < seaLevel + 0.5f ||
+                    IsNearCharacterSpawn(position, characterSpawn, 7.5f) ||
+                    IsNearPosition(position, houseResult.Center, houseResult.ClearanceRadius))
                 {
                     continue;
                 }
@@ -462,7 +504,10 @@ namespace PrivateIsland
                 float radius = Mathf.Lerp(islandSize * 0.38f, islandSize * 0.48f, (float)random.NextDouble());
                 Vector3 position = SampleSurfacePosition(angle, radius);
 
-                if (position.y > seaLevel + 1.2f || position.y < seaLevel - 0.1f || IsNearCharacterSpawn(position, characterSpawn, 4.5f))
+                if (position.y > seaLevel + 1.2f ||
+                    position.y < seaLevel - 0.1f ||
+                    IsNearCharacterSpawn(position, characterSpawn, 4.5f) ||
+                    IsNearPosition(position, houseResult.Center, houseResult.ClearanceRadius))
                 {
                     continue;
                 }
@@ -480,7 +525,10 @@ namespace PrivateIsland
                 float radius = Mathf.Lerp(islandSize * 0.18f, islandSize * 0.49f, (float)random.NextDouble());
                 Vector3 position = SampleSurfacePosition(angle, radius);
 
-                if (position.y < seaLevel + 0.1f || position.y > seaLevel + 1.6f || IsNearCharacterSpawn(position, characterSpawn, 4.5f))
+                if (position.y < seaLevel + 0.1f ||
+                    position.y > seaLevel + 1.6f ||
+                    IsNearCharacterSpawn(position, characterSpawn, 4.5f) ||
+                    IsNearPosition(position, houseResult.Center, houseResult.ClearanceRadius))
                 {
                     continue;
                 }
@@ -498,7 +546,9 @@ namespace PrivateIsland
                 float radius = Mathf.Lerp(islandSize * 0.18f, islandSize * 0.42f, (float)random.NextDouble());
                 Vector3 position = SampleSurfacePosition(angle, radius);
 
-                if (position.y < seaLevel + 0.9f || IsNearCharacterSpawn(position, characterSpawn, 7f))
+                if (position.y < seaLevel + 0.9f ||
+                    IsNearCharacterSpawn(position, characterSpawn, 7f) ||
+                    IsNearPosition(position, houseResult.Center, houseResult.ClearanceRadius))
                 {
                     continue;
                 }
@@ -508,7 +558,7 @@ namespace PrivateIsland
                 placedStumps++;
             }
 
-            CreateHiddenCollectibles(propsRoot, random, characterSpawn, dockDirection);
+            CreateHiddenCollectibles(propsRoot, random, characterSpawn, dockDirection, houseResult.Center, houseResult.ClearanceRadius);
         }
 
         private void BuildCharacter()
@@ -1069,12 +1119,12 @@ namespace PrivateIsland
             top.transform.localScale = new Vector3(scale * 0.22f, scale * 0.05f, scale * 0.22f);
         }
 
-        private void CreateHiddenCollectibles(Transform parent, System.Random random, Vector3 characterSpawn, Vector2 dockDirection)
+        private void CreateHiddenCollectibles(Transform parent, System.Random random, Vector3 characterSpawn, Vector2 dockDirection, Vector3 restrictedCenter, float restrictedRadius)
         {
-            PlaceHiddenCollectible(parent, IslandItemCatalog.MapId, "HiddenTreasureMap", 1.05f, random, characterSpawn, dockDirection, islandSize * 0.24f, islandSize * 0.42f, seaLevel + 0.75f, peakHeight + 1.2f);
-            PlaceHiddenCollectible(parent, IslandItemCatalog.CompassId, "HiddenCompass", 0.95f, random, characterSpawn, dockDirection, islandSize * 0.2f, islandSize * 0.45f, seaLevel + 0.45f, peakHeight + 1.2f);
-            PlaceHiddenCollectible(parent, IslandItemCatalog.TorchId, "HiddenTorch", 1.02f, random, characterSpawn, dockDirection, islandSize * 0.34f, islandSize * 0.48f, seaLevel - 0.05f, seaLevel + 1.5f);
-            PlaceHiddenCollectible(parent, IslandItemCatalog.CanteenId, "HiddenCanteen", 0.92f, random, characterSpawn, dockDirection, islandSize * 0.26f, islandSize * 0.46f, seaLevel + 0.3f, seaLevel + 2.4f);
+            PlaceHiddenCollectible(parent, IslandItemCatalog.MapId, "HiddenTreasureMap", 1.05f, random, characterSpawn, dockDirection, restrictedCenter, restrictedRadius, islandSize * 0.24f, islandSize * 0.42f, seaLevel + 0.75f, peakHeight + 1.2f);
+            PlaceHiddenCollectible(parent, IslandItemCatalog.CompassId, "HiddenCompass", 0.95f, random, characterSpawn, dockDirection, restrictedCenter, restrictedRadius, islandSize * 0.2f, islandSize * 0.45f, seaLevel + 0.45f, peakHeight + 1.2f);
+            PlaceHiddenCollectible(parent, IslandItemCatalog.TorchId, "HiddenTorch", 1.02f, random, characterSpawn, dockDirection, restrictedCenter, restrictedRadius, islandSize * 0.34f, islandSize * 0.48f, seaLevel - 0.05f, seaLevel + 1.5f);
+            PlaceHiddenCollectible(parent, IslandItemCatalog.CanteenId, "HiddenCanteen", 0.92f, random, characterSpawn, dockDirection, restrictedCenter, restrictedRadius, islandSize * 0.26f, islandSize * 0.46f, seaLevel + 0.3f, seaLevel + 2.4f);
         }
 
         private void PlaceHiddenCollectible(
@@ -1085,6 +1135,8 @@ namespace PrivateIsland
             System.Random random,
             Vector3 characterSpawn,
             Vector2 dockDirection,
+            Vector3 restrictedCenter,
+            float restrictedRadius,
             float minRadius,
             float maxRadius,
             float minHeight,
@@ -1096,7 +1148,10 @@ namespace PrivateIsland
                 float radius = RandomRange(random, minRadius, maxRadius);
                 Vector3 position = SampleSurfacePosition(angle, radius);
 
-                if (position.y < minHeight || position.y > maxHeight || IsNearCharacterSpawn(position, characterSpawn, 11f))
+                if (position.y < minHeight ||
+                    position.y > maxHeight ||
+                    IsNearCharacterSpawn(position, characterSpawn, 11f) ||
+                    IsNearPosition(position, restrictedCenter, restrictedRadius))
                 {
                     continue;
                 }
@@ -1261,6 +1316,117 @@ namespace PrivateIsland
             return position;
         }
 
+        private Vector3 GetSeasideHousePosition(Vector2 houseDirection)
+        {
+            Vector2 normalizedDirection = houseDirection.sqrMagnitude > 0.0001f
+                ? houseDirection.normalized
+                : new Vector2(0.91f, -0.42f).normalized;
+            float radius = islandSize * 0.34f;
+            Vector3 position = new Vector3(normalizedDirection.x, 0f, normalizedDirection.y) * radius;
+            position.y = IslandMeshBuilder.SampleHeight(position.x, position.z, islandSize, peakHeight) + 0.18f;
+            return position;
+        }
+
+        private void CreateHousePalms(Transform parent, Vector3 houseCenter, Vector2 houseDirection)
+        {
+            Vector3 forward = houseDirection.sqrMagnitude > 0.0001f
+                ? new Vector3(houseDirection.x, 0f, houseDirection.y).normalized
+                : new Vector3(0.91f, 0f, -0.42f).normalized;
+            Vector3 right = new Vector3(forward.z, 0f, -forward.x);
+
+            CreateHousePalm(parent, houseCenter, forward, right, new Vector2(-9f, 6.8f), 7.8f, -4f, -22f);
+            CreateHousePalm(parent, houseCenter, forward, right, new Vector2(9f, 6.8f), 7.6f, 3f, 18f);
+            CreateHousePalm(parent, houseCenter, forward, right, new Vector2(-8.8f, -5.6f), 8.4f, -6f, -34f);
+            CreateHousePalm(parent, houseCenter, forward, right, new Vector2(8.8f, -5.6f), 8.2f, 5f, 30f);
+        }
+
+        private void CreateHousePalm(Transform parent, Vector3 houseCenter, Vector3 forward, Vector3 right, Vector2 localOffset, float height, float tilt, float yawOffset)
+        {
+            Vector3 world = houseCenter + (right * localOffset.x) + (forward * localOffset.y);
+            world = ClampToIslandBuildPosition(world);
+            world.y = IslandMeshBuilder.SampleHeight(world.x, world.z, islandSize, peakHeight);
+            float yaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg + yawOffset;
+            CreatePalm(parent, world, height, tilt, yaw);
+        }
+
+        private void ClearSceneFlowersNearHouse(Vector3 houseCenter, float clearanceRadius)
+        {
+            IslandFlowerClusterPickup[] flowerPickups = FindObjectsByType<IslandFlowerClusterPickup>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (IslandFlowerClusterPickup flowerPickup in flowerPickups)
+            {
+                if (flowerPickup == null || !IsNearPosition(flowerPickup.transform.position, houseCenter, clearanceRadius))
+                {
+                    continue;
+                }
+
+                if (Application.isPlaying)
+                {
+                    Destroy(flowerPickup.gameObject);
+                }
+                else
+                {
+                    DestroyImmediate(flowerPickup.gameObject);
+                }
+            }
+
+            GameObject flowersRoot = GameObject.Find("Flowers");
+            if (flowersRoot == null)
+            {
+                return;
+            }
+
+            for (int i = flowersRoot.transform.childCount - 1; i >= 0; i--)
+            {
+                Transform child = flowersRoot.transform.GetChild(i);
+                if (child == null || !IsNearPosition(child.position, houseCenter, clearanceRadius))
+                {
+                    continue;
+                }
+
+                if (Application.isPlaying)
+                {
+                    Destroy(child.gameObject);
+                }
+                else
+                {
+                    DestroyImmediate(child.gameObject);
+                }
+            }
+        }
+
+        private void ClearWeatherGroundEffectsNearHouse(Vector3 houseCenter, float clearanceRadius)
+        {
+            ClearChildrenNearPosition(GameObject.Find("RainOnly"), houseCenter, clearanceRadius);
+            ClearChildrenNearPosition(GameObject.Find("SnowOverlays"), houseCenter, clearanceRadius);
+        }
+
+        private void ClearChildrenNearPosition(GameObject rootObject, Vector3 center, float radius)
+        {
+            if (rootObject == null)
+            {
+                return;
+            }
+
+            Transform root = rootObject.transform;
+            for (int i = root.childCount - 1; i >= 0; i--)
+            {
+                Transform child = root.GetChild(i);
+                if (child == null || !IsNearPosition(child.position, center, radius))
+                {
+                    continue;
+                }
+
+                if (Application.isPlaying)
+                {
+                    Destroy(child.gameObject);
+                }
+                else
+                {
+                    DestroyImmediate(child.gameObject);
+                }
+            }
+        }
+
         private Vector3 ClampToIslandBuildPosition(Vector3 position)
         {
             Vector2 planar = new Vector2(position.x, position.z);
@@ -1399,7 +1565,12 @@ namespace PrivateIsland
 
         private static bool IsNearCharacterSpawn(Vector3 position, Vector3 spawnPosition, float clearance)
         {
-            Vector2 planarDelta = new Vector2(position.x - spawnPosition.x, position.z - spawnPosition.z);
+            return IsNearPosition(position, spawnPosition, clearance);
+        }
+
+        private static bool IsNearPosition(Vector3 position, Vector3 center, float clearance)
+        {
+            Vector2 planarDelta = new Vector2(position.x - center.x, position.z - center.z);
             return planarDelta.sqrMagnitude < clearance * clearance;
         }
 
@@ -1604,6 +1775,11 @@ namespace PrivateIsland
             ReleaseObject(campfireEmberMaterial);
             ReleaseObject(campfireAshMaterial);
             ReleaseObject(campfireStoneMaterial);
+            ReleaseObject(housePlasterMaterial);
+            ReleaseObject(houseAccentMaterial);
+            ReleaseObject(houseWoodMaterial);
+            ReleaseObject(houseDetailMaterial);
+            ReleaseObject(houseFloorMaterial);
 
             terrainMesh = null;
             waterMesh = null;
@@ -1622,6 +1798,11 @@ namespace PrivateIsland
             campfireEmberMaterial = null;
             campfireAshMaterial = null;
             campfireStoneMaterial = null;
+            housePlasterMaterial = null;
+            houseAccentMaterial = null;
+            houseWoodMaterial = null;
+            houseDetailMaterial = null;
+            houseFloorMaterial = null;
         }
 
         private static void ReleaseObject(UnityEngine.Object obj)

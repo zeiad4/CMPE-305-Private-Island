@@ -16,6 +16,9 @@ namespace PrivateIsland
 
         private IslandCharacterController cachedController;
         private bool inputSuspended;
+        private bool scriptedPoseActive;
+        private Vector3 scriptedPosition;
+        private Quaternion scriptedRotation;
 
         public void Configure(Transform target, Vector3 targetViewOffset, float targetYaw, float targetPitch)
         {
@@ -30,6 +33,18 @@ namespace PrivateIsland
         public void SetInputSuspended(bool suspended)
         {
             inputSuspended = suspended;
+        }
+
+        public void SetScriptedPose(Vector3 worldPosition, Quaternion worldRotation)
+        {
+            scriptedPoseActive = true;
+            scriptedPosition = worldPosition;
+            scriptedRotation = worldRotation;
+        }
+
+        public void ClearScriptedPose()
+        {
+            scriptedPoseActive = false;
         }
 
         private void OnEnable()
@@ -103,6 +118,13 @@ namespace PrivateIsland
 
         private void ApplyTransform()
         {
+            if (scriptedPoseActive)
+            {
+                transform.position = scriptedPosition;
+                transform.rotation = scriptedRotation;
+                return;
+            }
+
             if (followTarget == null)
             {
                 return;

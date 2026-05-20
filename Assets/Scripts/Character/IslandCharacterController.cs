@@ -5,6 +5,7 @@ namespace PrivateIsland
     public sealed class IslandCharacterController : MonoBehaviour
     {
         private static readonly Collider[] MovementCollisionHits = new Collider[16];
+        private static readonly RaycastHit[] GroundHits = new RaycastHit[24];
 
         [SerializeField] private float moveSpeed = 8f;
         [SerializeField] private float sprintMultiplier = 1.65f;
@@ -48,6 +49,17 @@ namespace PrivateIsland
         public void SetInputEnabled(bool enabled)
         {
             inputEnabled = enabled;
+        }
+
+        public void TeleportTo(Vector3 position, float yaw)
+        {
+            transform.position = ClampToIsland(position);
+            viewYaw = yaw;
+            hasViewYaw = true;
+            ApplyViewRotation();
+            SnapToGround(true);
+            previousPosition = transform.position;
+            currentVelocity = Vector3.zero;
         }
 
         private void OnEnable()
@@ -285,7 +297,8 @@ namespace PrivateIsland
 
                 if (hit.GetComponentInParent<IslandRockInteraction>() != null ||
                     hit.GetComponentInParent<IslandPalmInteraction>() != null ||
-                    hit.GetComponentInParent<IslandCampfireInteraction>() != null)
+                    hit.GetComponentInParent<IslandCampfireInteraction>() != null ||
+                    hit.GetComponentInParent<IslandSolidObstacle>() != null)
                 {
                     return false;
                 }
@@ -296,7 +309,36 @@ namespace PrivateIsland
 
         private float SampleGroundHeight(Vector3 position)
         {
-            return IslandMeshBuilder.SampleHeight(position.x, position.z, islandSize, peakHeight);
+            float terrainHeight = IslandMeshBuilder.SampleHeight(position.x, position.z, islandSize, peakHeight);
+            Vector3 rayOrigin = position + Vector3.up * (peakHeight + 24f);
+            float rayDistance = peakHeight + 48f;
+            int hitCount = Physics.RaycastNonAlloc(rayOrigin, Vector3.down, GroundHits, rayDistance, ~0, QueryTriggerInteraction.Ignore);
+
+            float bestSurfaceY = float.MinValue;
+            bool foundWalkableSurface = false;
+
+            for (int i = 0; i < hitCount; i++)
+            {
+                RaycastHit hit = GroundHits[i];
+                Collider collider = hit.collider;
+                if (collider == null || collider.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+
+                if (collider.GetComponentInParent<IslandWalkableSurface>() == null)
+                {
+                    continue;
+                }
+
+                if (hit.point.y > bestSurfaceY)
+                {
+                    bestSurfaceY = hit.point.y;
+                    foundWalkableSurface = true;
+                }
+            }
+
+            return foundWalkableSurface ? bestSurfaceY : terrainHeight;
         }
 
         private void UpdateVelocity()

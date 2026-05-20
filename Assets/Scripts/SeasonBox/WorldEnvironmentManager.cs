@@ -122,6 +122,7 @@ namespace PrivateIsland
         private float nextThunderStrikeTimer;
         private float thunderStrikeVisibleTimer;
         private Light thunderFlashLight;
+        private bool weatherEffectsSuppressedByCover;
 
         private void Awake()
         {
@@ -994,6 +995,13 @@ namespace PrivateIsland
                 return;
             }
 
+            bool covered = IsUnderWeatherCover(followTarget);
+            UpdateWeatherCoverState(covered);
+            if (covered)
+            {
+                return;
+            }
+
             Vector3 effectPosition = followTarget.position + weatherFollowOffset + (Vector3.up * weatherFollowHeight);
 
             if (rainEffect != null)
@@ -1010,6 +1018,97 @@ namespace PrivateIsland
             {
                 thunderstormEffect.transform.position = effectPosition;
             }
+        }
+
+        private void UpdateWeatherCoverState(bool covered)
+        {
+            bool rainActive = currentWeather == WeatherType.Rain;
+            bool thunderstormActive = currentWeather == WeatherType.Thunderstorm;
+            bool winterSnowActive = ShouldPlayWinterSnow();
+            bool precipitationActive = rainActive || thunderstormActive || winterSnowActive;
+
+            if (!precipitationActive)
+            {
+                weatherEffectsSuppressedByCover = false;
+                return;
+            }
+
+            if (covered)
+            {
+                if (rainEffect != null && rainEffect.activeSelf)
+                {
+                    StopEffect(rainEffect);
+                }
+
+                if (winterSnowEffect != null && winterSnowEffect.activeSelf)
+                {
+                    StopEffect(winterSnowEffect);
+                }
+
+                if (thunderstormEffect != null && thunderstormEffect.activeSelf)
+                {
+                    StopEffect(thunderstormEffect);
+                }
+
+                weatherEffectsSuppressedByCover = true;
+                return;
+            }
+
+            if (!weatherEffectsSuppressedByCover)
+            {
+                return;
+            }
+
+            if (rainEffect != null && !rainEffect.activeSelf)
+            {
+                PlayEffect(rainEffect);
+            }
+
+            if (winterSnowActive)
+            {
+                GameObject activeWinterSnowEffect = EnsureWinterSnowEffectObject();
+                if (activeWinterSnowEffect != null && !activeWinterSnowEffect.activeSelf)
+                {
+                    PlayEffect(activeWinterSnowEffect);
+                }
+            }
+
+            if (currentWeather == WeatherType.Thunderstorm)
+            {
+                GameObject activeThunderstormEffect = EnsureThunderstormEffectObject();
+                if (activeThunderstormEffect != null && !activeThunderstormEffect.activeSelf)
+                {
+                    PlayEffect(activeThunderstormEffect);
+                }
+            }
+
+            weatherEffectsSuppressedByCover = false;
+        }
+
+        private static bool IsUnderWeatherCover(Transform target)
+        {
+            if (target == null)
+            {
+                return false;
+            }
+
+            Vector3 origin = target.position + new Vector3(0f, 1.2f, 0f);
+            RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.up, 12f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Collider collider = hits[i].collider;
+                if (collider == null)
+                {
+                    continue;
+                }
+
+                if (collider.GetComponentInParent<IslandWeatherCover>() != null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void UpdateWeatherEffectAppearance()
