@@ -11,29 +11,66 @@ namespace PrivateIsland
         [SerializeField] private float swayDuration = 1.1f;
         [SerializeField] private int leafBurstCount = 8;
         [SerializeField] private int coconutDropCount = 2;
+        [SerializeField] private int woodDropCount = 4;
+        [SerializeField] private float chopDuration = 4f;
+        [SerializeField] private float woodRevealDelay = 1.2f;
 
         private readonly List<Renderer> leafRenderers = new List<Renderer>();
         private readonly List<Transform> coconutRoots = new List<Transform>();
+        private readonly List<Transform> trunkSegments = new List<Transform>();
+
         private Quaternion restingRotation;
         private float nextInteractionTime;
+        private float palmHeight;
         private bool interactionRunning;
+        private bool chopped;
+        private bool woodDropped;
+        private Rigidbody palmBody;
+        private Coroutine hitReactionRoutine;
 
         public void Configure(float interactionRadius, float canopyHeight)
         {
-            SetInteractionPrompt("Press F to shake the palm");
+            palmHeight = canopyHeight;
+            woodDropCount = Mathf.Clamp(Mathf.RoundToInt(canopyHeight * 0.6f), 3, 6);
             SetInteractionRadius(interactionRadius);
             SetFocusHeight(Mathf.Max(1.6f, canopyHeight * 0.82f));
+            RefreshPrompt();
         }
 
         private void Awake()
         {
             restingRotation = transform.localRotation;
             CacheParts();
+            RefreshPrompt();
+        }
+
+        public override bool SupportsInteractionKey(KeyCode key)
+        {
+            if (chopped)
+            {
+                return false;
+            }
+
+            return key == KeyCode.T || key == KeyCode.E || key == KeyCode.F;
         }
 
         public override bool CanInteract(Transform interactor)
         {
-            return !interactionRunning && Time.time >= nextInteractionTime;
+            return !chopped && !interactionRunning && Time.time >= nextInteractionTime;
+        }
+
+        public override void Interact(Transform interactor, KeyCode key)
+        {
+            if (key == KeyCode.T)
+            {
+                ChopDown(interactor);
+                return;
+            }
+
+            if (key == KeyCode.E || key == KeyCode.F)
+            {
+                Interact(interactor);
+            }
         }
 
         public override void Interact(Transform interactor)
@@ -44,6 +81,16 @@ namespace PrivateIsland
             }
 
             StartCoroutine(ShakeRoutine());
+        }
+
+        private void ChopDown(Transform interactor)
+        {
+            if (!CanInteract(interactor))
+            {
+                return;
+            }
+
+            StartCoroutine(ChopRoutine(interactor));
         }
 
         private IEnumerator ShakeRoutine()
@@ -68,10 +115,82 @@ namespace PrivateIsland
             interactionRunning = false;
         }
 
+        private IEnumerator ChopRoutine(Transform interactor)
+        {
+            interactionRunning = true;
+            CacheParts();
+
+            IslandCharacterController controller = interactor != null
+                ? interactor.GetComponent<IslandCharacterController>() ?? interactor.GetComponentInParent<IslandCharacterController>()
+                : null;
+            IslandFirstPersonCamera firstPersonCamera = Camera.main != null
+                ? Camera.main.GetComponent<IslandFirstPersonCamera>()
+                : null;
+            if (controller != null)
+            {
+                controller.SetInputEnabled(false);
+            }
+
+            firstPersonCamera?.SetInputSuspended(true);
+
+            IslandInteractionPromptUI promptUI = IslandInteractionPromptUI.GetOrCreate();
+            IslandActionToolVisual toolVisual = IslandActionToolVisual.GetOrCreate();
+            toolVisual?.ShowTool(IslandActionToolVisual.ToolKind.Axe);
+
+            float elapsed = 0f;
+            int lastHitIndex = -1;
+            while (elapsed < chopDuration)
+            {
+                elapsed += Time.deltaTime;
+                float progress = Mathf.Clamp01(elapsed / chopDuration);
+                promptUI.ShowProgress("Chopping tree...", progress);
+                float strikePhase = Mathf.Repeat(elapsed, 1f);
+                toolVisual?.UpdateSwing(strikePhase, 1f);
+
+                int hitIndex = Mathf.FloorToInt(elapsed);
+                if (strikePhase >= 0.55f && hitIndex != lastHitIndex)
+                {
+                    lastHitIndex = hitIndex;
+                    TriggerHitReaction();
+                }
+
+                yield return null;
+            }
+
+            toolVisual?.HideTool();
+            promptUI.HideProgress();
+
+            if (controller != null)
+            {
+                controller.SetInputEnabled(true);
+            }
+
+            firstPersonCamera?.SetInputSuspended(false);
+
+            chopped = true;
+            nextInteractionTime = float.MaxValue;
+            RefreshPrompt();
+
+            DropLeaves(leafBurstCount + 4);
+            DropCoconuts(int.MaxValue);
+            EnablePalmPhysics(interactor);
+
+            yield return new WaitForSeconds(woodRevealDelay);
+
+            if (!woodDropped)
+            {
+                SpawnWoodDrops();
+                woodDropped = true;
+            }
+
+            interactionRunning = false;
+        }
+
         private void CacheParts()
         {
             leafRenderers.Clear();
             coconutRoots.Clear();
+            trunkSegments.Clear();
 
             Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
             foreach (Renderer renderer in renderers)
@@ -93,6 +212,11 @@ namespace PrivateIsland
                 if (child != null && child.name.Contains("Coconut"))
                 {
                     coconutRoots.Add(child);
+                }
+
+                if (child != null && child.name.Contains("TrunkSegment"))
+                {
+                    trunkSegments.Add(child);
                 }
             }
         }
@@ -149,35 +273,151 @@ namespace PrivateIsland
                 }
             }
 
-            int dropCount = Mathf.Min(requestedCount, activeCoconuts.Count);
+            int dropCount = requestedCount == int.MaxValue
+                ? activeCoconuts.Count
+                : Mathf.Min(requestedCount, activeCoconuts.Count);
+
             for (int i = 0; i < dropCount; i++)
             {
                 int selectedIndex = Random.Range(0, activeCoconuts.Count);
                 Transform coconut = activeCoconuts[selectedIndex];
                 activeCoconuts.RemoveAt(selectedIndex);
 
-                Renderer renderer = coconut.GetComponent<Renderer>();
-                GameObject fallingCoconut = IslandInteractionUtility.CreateMeshObject("FallingCoconut", PrimitiveType.Sphere, renderer != null ? renderer.sharedMaterial : null);
-                fallingCoconut.transform.position = coconut.position;
-                fallingCoconut.transform.rotation = coconut.rotation;
-                fallingCoconut.transform.localScale = coconut.lossyScale;
-
-                SphereCollider collider = fallingCoconut.AddComponent<SphereCollider>();
-                collider.radius = 0.5f;
-
-                Rigidbody rigidbody = fallingCoconut.AddComponent<Rigidbody>();
-                rigidbody.mass = 0.9f;
-                rigidbody.linearDamping = 0.06f;
-                rigidbody.angularDamping = 0.18f;
-                rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-
                 Vector3 launch = ((coconut.position - transform.position).normalized * Random.Range(0.65f, 1.2f)) + (Vector3.up * 0.32f);
-                rigidbody.AddForce(launch, ForceMode.Impulse);
+                IslandWorldItem droppedCoconut = IslandWorldItem.SpawnWorldItem(
+                    IslandItemCatalog.CoconutId,
+                    1,
+                    coconut.position + Vector3.up * 0.08f,
+                    coconut.rotation,
+                    false,
+                    true,
+                    launch,
+                    new Vector3(Random.Range(-0.45f, 0.45f), Random.Range(0.7f, 1.2f), Random.Range(-0.45f, 0.45f)));
 
-                IslandTimedDestroy cleanup = fallingCoconut.AddComponent<IslandTimedDestroy>();
-                cleanup.Configure(20f);
+                if (droppedCoconut != null)
+                {
+                    droppedCoconut.SetWorldScale(coconut.lossyScale);
+                }
+
                 coconut.gameObject.SetActive(false);
             }
+        }
+
+        private void EnablePalmPhysics(Transform interactor)
+        {
+            palmBody ??= GetComponent<Rigidbody>();
+            if (palmBody == null)
+            {
+                palmBody = gameObject.AddComponent<Rigidbody>();
+            }
+
+            palmBody.mass = Mathf.Clamp(palmHeight * 1.45f, 6f, 12f);
+            palmBody.linearDamping = 0.38f;
+            palmBody.angularDamping = 0.5f;
+            palmBody.interpolation = RigidbodyInterpolation.Interpolate;
+            palmBody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            palmBody.isKinematic = false;
+
+            Vector3 pushDirection = interactor != null
+                ? transform.position - interactor.position
+                : transform.right;
+            pushDirection.y = 0f;
+            if (pushDirection.sqrMagnitude < 0.001f)
+            {
+                pushDirection = transform.right;
+            }
+
+            pushDirection.Normalize();
+
+            Vector3 torqueAxis = Vector3.Cross(Vector3.up, pushDirection).normalized;
+            if (torqueAxis.sqrMagnitude < 0.001f)
+            {
+                torqueAxis = transform.forward;
+            }
+
+            palmBody.AddForce((pushDirection * 1.65f) + (Vector3.up * 0.4f), ForceMode.Impulse);
+            palmBody.AddTorque(torqueAxis * Mathf.Clamp(palmHeight * 3.2f, 18f, 32f), ForceMode.Impulse);
+        }
+
+        private void SpawnWoodDrops()
+        {
+            if (trunkSegments.Count == 0)
+            {
+                return;
+            }
+
+            int dropCount = Mathf.Min(woodDropCount, trunkSegments.Count);
+            for (int i = 0; i < dropCount; i++)
+            {
+                int segmentIndex = Mathf.RoundToInt(((trunkSegments.Count - 1f) * i) / Mathf.Max(1f, dropCount - 1f));
+                Transform segment = trunkSegments[Mathf.Clamp(segmentIndex, 0, trunkSegments.Count - 1)];
+                if (segment == null)
+                {
+                    continue;
+                }
+
+                Vector3 woodAxis = segment.up.sqrMagnitude > 0.001f ? segment.up.normalized : transform.right;
+                Quaternion woodRotation = Quaternion.FromToRotation(Vector3.right, woodAxis);
+                Vector3 spawnPosition = segment.position + Vector3.up * 0.08f;
+
+                IslandWorldItem woodItem = IslandWorldItem.SpawnWorldItem(
+                    IslandItemCatalog.WoodId,
+                    1,
+                    spawnPosition + Vector3.up * 0.06f,
+                    woodRotation,
+                    false,
+                    true,
+                    (woodAxis * Random.Range(-0.16f, 0.16f)) + Vector3.up * Random.Range(0.12f, 0.24f),
+                    new Vector3(Random.Range(-0.2f, 0.2f), Random.Range(-0.28f, 0.28f), Random.Range(-0.2f, 0.2f)));
+
+                if (woodItem != null)
+                {
+                    woodItem.SetWorldScale(Vector3.one * 1.08f);
+                }
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(gameObject);
+            }
+            else
+            {
+                DestroyImmediate(gameObject);
+            }
+        }
+
+        private void RefreshPrompt()
+        {
+            SetInteractionPrompt(chopped
+                ? string.Empty
+                : "Press F to shake the palm or T to chop it down");
+        }
+
+        private void TriggerHitReaction()
+        {
+            if (hitReactionRoutine != null)
+            {
+                StopCoroutine(hitReactionRoutine);
+            }
+
+            hitReactionRoutine = StartCoroutine(HitReactionRoutine());
+        }
+
+        private IEnumerator HitReactionRoutine()
+        {
+            float duration = 0.24f;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float normalized = Mathf.Clamp01(elapsed / duration);
+                float pulse = Mathf.Sin(normalized * Mathf.PI) * 4.6f;
+                transform.localRotation = restingRotation * Quaternion.Euler(pulse * 0.25f, pulse * 0.42f, pulse);
+                yield return null;
+            }
+
+            transform.localRotation = restingRotation;
+            hitReactionRoutine = null;
         }
     }
 }

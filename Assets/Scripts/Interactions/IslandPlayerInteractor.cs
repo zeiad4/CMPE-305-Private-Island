@@ -5,17 +5,21 @@ namespace PrivateIsland
     public sealed class IslandPlayerInteractor : MonoBehaviour
     {
         [SerializeField] private KeyCode interactionKey = KeyCode.F;
+        [SerializeField] private KeyCode alternateInteractionKey = KeyCode.E;
+        [SerializeField] private KeyCode tertiaryInteractionKey = KeyCode.T;
         [SerializeField] private float lookDotThreshold = 0.25f;
 
         private Camera mainCamera;
         private IslandInteractionPromptUI promptUI;
         private IslandCharacterController characterController;
+        private IslandInventory inventory;
         private EnvironmentMenuUI environmentMenuUI;
         private IslandInteractable currentTarget;
 
         private void Awake()
         {
             characterController = GetComponent<IslandCharacterController>();
+            inventory = GetComponent<IslandInventory>();
         }
 
         private void Update()
@@ -27,13 +31,19 @@ namespace PrivateIsland
 
             promptUI ??= IslandInteractionPromptUI.GetOrCreate();
             mainCamera ??= Camera.main;
+            inventory ??= GetComponent<IslandInventory>();
             environmentMenuUI ??= FindAnyObjectByType<EnvironmentMenuUI>();
 
             if ((environmentMenuUI != null && environmentMenuUI.IsMenuOpen) ||
+                (inventory != null && inventory.IsOpen) ||
                 (characterController != null && !characterController.IsInputEnabled))
             {
                 currentTarget = null;
-                promptUI.Hide();
+                if (!promptUI.HasActiveProgress)
+                {
+                    promptUI.Hide();
+                }
+
                 return;
             }
 
@@ -41,15 +51,17 @@ namespace PrivateIsland
             if (currentTarget != null)
             {
                 promptUI.Show(currentTarget.InteractionPrompt);
-                if (Input.GetKeyDown(interactionKey))
-                {
-                    currentTarget.Interact(transform);
-                }
+                TryInteract(interactionKey);
+                TryInteract(alternateInteractionKey);
+                TryInteract(tertiaryInteractionKey);
 
                 return;
             }
 
-            promptUI.Hide();
+            if (!promptUI.HasActiveProgress)
+            {
+                promptUI.Hide();
+            }
         }
 
         private IslandInteractable FindBestTarget()
@@ -93,6 +105,16 @@ namespace PrivateIsland
             }
 
             return bestTarget;
+        }
+
+        private void TryInteract(KeyCode key)
+        {
+            if (currentTarget == null || !Input.GetKeyDown(key) || !currentTarget.SupportsInteractionKey(key))
+            {
+                return;
+            }
+
+            currentTarget.Interact(transform, key);
         }
     }
 }

@@ -21,6 +21,7 @@
 /*.csproj
 /*.unityproj
 /*.sln
+/*.slnx
 /*.suo
 /*.tmp
 /*.user
@@ -36,3 +37,7 @@
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local Unity recovery data
+/Assets/_Recovery/
+/Assets/_Recovery.meta

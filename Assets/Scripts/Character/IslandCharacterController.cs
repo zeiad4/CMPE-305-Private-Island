@@ -4,7 +4,12 @@ namespace PrivateIsland
 {
     public sealed class IslandCharacterController : MonoBehaviour
     {
+        private static readonly Collider[] MovementCollisionHits = new Collider[16];
+
         [SerializeField] private float moveSpeed = 8f;
+        [SerializeField] private float sprintMultiplier = 1.65f;
+        [SerializeField] private float jumpHeight = 2.1f;
+        [SerializeField] private float gravity = 26f;
         [SerializeField] private float turnSpeed = 540f;
         [SerializeField] private float groundOffset = 0.02f;
         [SerializeField] private float collisionRadius = 0.45f;
@@ -18,17 +23,20 @@ namespace PrivateIsland
         private float viewYaw;
         private bool hasViewYaw;
         private bool inputEnabled = true;
+        private bool isGrounded = true;
         private Vector3 currentVelocity;
         private Vector3 previousPosition;
+        private float verticalVelocity;
 
         public bool IsInputEnabled => inputEnabled;
+        public bool IsGrounded => isGrounded;
         public Vector3 CurrentVelocity => currentVelocity;
 
         public void Configure(float terrainSize, float terrainPeakHeight)
         {
             islandSize = terrainSize;
             peakHeight = terrainPeakHeight;
-            SnapToGround();
+            SnapToGround(true);
         }
 
         public void SetViewYaw(float yaw)
@@ -45,7 +53,7 @@ namespace PrivateIsland
 
         private void OnEnable()
         {
-            SnapToGround();
+            SnapToGround(true);
             previousPosition = transform.position;
             currentVelocity = Vector3.zero;
         }
@@ -54,7 +62,7 @@ namespace PrivateIsland
         {
             if (!Application.isPlaying)
             {
-                SnapToGround();
+                SnapToGround(true);
                 currentVelocity = Vector3.zero;
                 previousPosition = transform.position;
                 return;
@@ -62,7 +70,7 @@ namespace PrivateIsland
 
             if (!inputEnabled)
             {
-                SnapToGround();
+                SnapToGround(true);
                 ApplyViewRotation();
                 currentVelocity = Vector3.zero;
                 previousPosition = transform.position;
@@ -71,15 +79,7 @@ namespace PrivateIsland
 
             Vector2 input = ReadMovementInput();
             Vector3 moveDirection = ResolveMoveDirection(input);
-
-            if (moveDirection.sqrMagnitude > 0.0001f)
-            {
-                Move(moveDirection.normalized);
-            }
-            else
-            {
-                SnapToGround();
-            }
+            Move(moveDirection);
 
             ApplyViewRotation();
             UpdateVelocity();
@@ -98,18 +98,59 @@ namespace PrivateIsland
 
             transform.position = nextPosition;
 
-            if (!hasViewYaw)
+            if (moveDirection.sqrMagnitude > 0.0001f)
             {
-                Quaternion targetRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
+                float speed = moveSpeed * (IsSprintHeld() ? sprintMultiplier : 1f);
+                Vector3 movementDelta = moveDirection.normalized * speed * Time.deltaTime;
+                nextPosition = ResolveHorizontalMovement(nextPosition, movementDelta);
+
+                if (!hasViewYaw)
+                {
+                    Quaternion targetRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
+                    transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
+                }
             }
+
+            float groundHeight = SampleGroundHeight(nextPosition) + groundOffset;
+            UpdateGroundState(ref nextPosition, groundHeight);
+
+            if (isGrounded && Input.GetKeyDown(KeyCode.Space))
+            {
+                verticalVelocity = Mathf.Sqrt(2f * gravity * jumpHeight);
+                isGrounded = false;
+            }
+
+            if (isGrounded)
+            {
+                nextPosition.y = groundHeight;
+            }
+            else
+            {
+                verticalVelocity -= gravity * Time.deltaTime;
+                nextPosition.y += verticalVelocity * Time.deltaTime;
+
+                if (nextPosition.y <= groundHeight)
+                {
+                    nextPosition.y = groundHeight;
+                    verticalVelocity = 0f;
+                    isGrounded = true;
+                }
+            }
+
+            transform.position = nextPosition;
         }
 
-        private void SnapToGround()
+        private void SnapToGround(bool resetVerticalMotion = false)
         {
             Vector3 position = ClampToIsland(transform.position);
             position.y = SampleGroundHeight(position) + groundOffset;
             transform.position = position;
+
+            if (resetVerticalMotion)
+            {
+                verticalVelocity = 0f;
+                isGrounded = true;
+            }
         }
 
         private Vector3 ClampToIsland(Vector3 position)
@@ -185,6 +226,82 @@ namespace PrivateIsland
             }
 
             return Vector2.ClampMagnitude(new Vector2(horizontal, vertical), 1f);
+        }
+
+        private void UpdateGroundState(ref Vector3 position, float groundHeight)
+        {
+            if (position.y <= groundHeight + groundSnapDistance && verticalVelocity <= 0f)
+            {
+                position.y = groundHeight;
+                verticalVelocity = 0f;
+                isGrounded = true;
+                return;
+            }
+
+            isGrounded = false;
+        }
+
+        private static bool IsSprintHeld()
+        {
+            return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        }
+
+        private Vector3 ResolveHorizontalMovement(Vector3 origin, Vector3 movementDelta)
+        {
+            Vector3 target = ClampToIsland(origin + movementDelta);
+            if (CanOccupyPosition(target))
+            {
+                return target;
+            }
+
+            Vector3 horizontalOnly = new Vector3(movementDelta.x, 0f, 0f);
+            if (horizontalOnly.sqrMagnitude > 0.000001f)
+            {
+                Vector3 horizontalTarget = ClampToIsland(origin + horizontalOnly);
+                if (CanOccupyPosition(horizontalTarget))
+                {
+                    origin = horizontalTarget;
+                }
+            }
+
+            Vector3 depthOnly = new Vector3(0f, 0f, movementDelta.z);
+            if (depthOnly.sqrMagnitude > 0.000001f)
+            {
+                Vector3 depthTarget = ClampToIsland(origin + depthOnly);
+                if (CanOccupyPosition(depthTarget))
+                {
+                    origin = depthTarget;
+                }
+            }
+
+            return origin;
+        }
+
+        private bool CanOccupyPosition(Vector3 position)
+        {
+            float radius = Mathf.Max(0.05f, collisionRadius);
+            float height = Mathf.Max(collisionHeight, radius * 2f);
+            Vector3 bottom = position + Vector3.up * radius;
+            Vector3 top = position + Vector3.up * (height - radius);
+
+            int hitCount = Physics.OverlapCapsuleNonAlloc(bottom, top, radius, MovementCollisionHits, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < hitCount; i++)
+            {
+                Collider hit = MovementCollisionHits[i];
+                if (hit == null || hit.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+
+                if (hit.GetComponentInParent<IslandRockInteraction>() != null ||
+                    hit.GetComponentInParent<IslandPalmInteraction>() != null ||
+                    hit.GetComponentInParent<IslandCampfireInteraction>() != null)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private float SampleGroundHeight(Vector3 position)

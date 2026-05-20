@@ -1,22 +1,23 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace PrivateIsland
 {
     public sealed class IslandRockInteraction : IslandInteractable
     {
-        [SerializeField] private float cooldown = 2.8f;
+        [SerializeField] private float mineDuration = 5f;
         [SerializeField] private int looseStoneCount = 5;
 
         private Quaternion restingRotation;
         private Vector3 restingPosition;
-        private float nextInteractionTime;
         private bool interactionRunning;
+        private bool mined;
+        private Coroutine reactionRoutine;
 
         public void Configure(float interactionRadius, float scale)
         {
-            SetInteractionPrompt("Press F to loosen the rock");
+            looseStoneCount = Mathf.Clamp(Mathf.RoundToInt(scale * 1.35f), 4, 7);
+            SetInteractionPrompt("Press E or F to mine the rock");
             SetInteractionRadius(interactionRadius);
             SetFocusHeight(Mathf.Max(0.8f, scale * 0.48f));
         }
@@ -29,7 +30,7 @@ namespace PrivateIsland
 
         public override bool CanInteract(Transform interactor)
         {
-            return !interactionRunning && Time.time >= nextInteractionTime;
+            return !mined && !interactionRunning;
         }
 
         public override void Interact(Transform interactor)
@@ -39,83 +40,135 @@ namespace PrivateIsland
                 return;
             }
 
-            StartCoroutine(LoosenRoutine());
+            StartCoroutine(MineRoutine(interactor));
         }
 
-        private IEnumerator LoosenRoutine()
+        private IEnumerator MineRoutine(Transform interactor)
         {
             interactionRunning = true;
-            nextInteractionTime = Time.time + cooldown;
-            SpawnLooseStones(looseStoneCount + Random.Range(0, 3));
 
-            float duration = 0.55f;
+            IslandCharacterController controller = interactor != null
+                ? interactor.GetComponent<IslandCharacterController>() ?? interactor.GetComponentInParent<IslandCharacterController>()
+                : null;
+            IslandFirstPersonCamera firstPersonCamera = Camera.main != null
+                ? Camera.main.GetComponent<IslandFirstPersonCamera>()
+                : null;
+            if (controller != null)
+            {
+                controller.SetInputEnabled(false);
+            }
+
+            firstPersonCamera?.SetInputSuspended(true);
+
+            IslandInteractionPromptUI promptUI = IslandInteractionPromptUI.GetOrCreate();
+            IslandActionToolVisual toolVisual = IslandActionToolVisual.GetOrCreate();
+            toolVisual?.ShowTool(IslandActionToolVisual.ToolKind.Pickaxe);
+
             float elapsed = 0f;
-            while (elapsed < duration)
+            int lastHitIndex = -1;
+            while (elapsed < mineDuration)
             {
                 elapsed += Time.deltaTime;
-                float normalized = Mathf.Clamp01(elapsed / duration);
-                float shake = Mathf.Sin(normalized * Mathf.PI * 7f) * (1f - normalized) * 0.08f;
-                transform.localPosition = restingPosition + new Vector3(shake, Mathf.Abs(shake) * 0.2f, -shake * 0.5f);
-                transform.localRotation = restingRotation * Quaternion.Euler(shake * 70f, shake * 110f, shake * 45f);
+                float progress = Mathf.Clamp01(elapsed / mineDuration);
+                promptUI.ShowProgress("Mining rock...", progress);
+
+                float strikePhase = Mathf.Repeat(elapsed, 1f);
+                toolVisual?.UpdateSwing(strikePhase, 1f);
+
+                int hitIndex = Mathf.FloorToInt(elapsed);
+                if (strikePhase >= 0.55f && hitIndex != lastHitIndex)
+                {
+                    lastHitIndex = hitIndex;
+                    TriggerHitReaction();
+                }
+
                 yield return null;
             }
 
-            transform.localPosition = restingPosition;
-            transform.localRotation = restingRotation;
-            interactionRunning = false;
+            toolVisual?.HideTool();
+            promptUI.HideProgress();
+
+            if (controller != null)
+            {
+                controller.SetInputEnabled(true);
+            }
+
+            firstPersonCamera?.SetInputSuspended(false);
+
+            mined = true;
+            SpawnMinedStones();
+
+            if (Application.isPlaying)
+            {
+                Destroy(gameObject);
+            }
+            else
+            {
+                DestroyImmediate(gameObject);
+            }
         }
 
-        private void SpawnLooseStones(int count)
+        private void SpawnMinedStones()
         {
             if (!IslandInteractionUtility.TryGetCompositeBounds(transform, out Bounds bounds))
             {
                 return;
             }
 
-            Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
-            Renderer referenceRenderer = renderers.Length > 0 ? renderers[0] : null;
-            Material stoneMaterial = referenceRenderer != null ? referenceRenderer.sharedMaterial : null;
-            Color tint = IslandInteractionUtility.ResolveRendererColor(referenceRenderer, new Color(0.52f, 0.5f, 0.46f));
+            Vector3 center = bounds.center;
+            float radius = Mathf.Max(bounds.extents.x, bounds.extents.z) * 0.8f;
 
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < looseStoneCount; i++)
             {
-                PrimitiveType primitiveType = Random.value > 0.5f ? PrimitiveType.Cube : PrimitiveType.Sphere;
-                GameObject stone = IslandInteractionUtility.CreateMeshObject("LooseStone", primitiveType, stoneMaterial);
-                Renderer stoneRenderer = stone.GetComponent<Renderer>();
-                IslandInteractionUtility.ApplyTint(stoneRenderer, Color.Lerp(tint, new Color(0.68f, 0.66f, 0.61f), Random.Range(0f, 0.35f)));
+                float angle = (360f / Mathf.Max(1, looseStoneCount)) * i;
+                float spread = radius * Mathf.Lerp(0.16f, 0.54f, (i + 1f) / (looseStoneCount + 1f));
+                Vector3 ringOffset = Quaternion.Euler(0f, angle + Random.Range(-18f, 18f), 0f) * new Vector3(spread, 0f, 0f);
+                Vector3 spawnPosition = center + ringOffset + Vector3.up * Mathf.Max(0.4f, bounds.extents.y * 0.75f);
 
-                Vector3 lateral = Random.insideUnitSphere;
-                lateral.y = Mathf.Abs(lateral.y) * 0.35f;
-                lateral.Normalize();
+                IslandWorldItem looseStone = IslandWorldItem.SpawnWorldItem(
+                    IslandItemCatalog.RockId,
+                    1,
+                    spawnPosition,
+                    Random.rotation,
+                    false,
+                    true,
+                    (ringOffset.normalized * Random.Range(0.12f, 0.28f)) + Vector3.up * Random.Range(0.1f, 0.22f),
+                    new Vector3(Random.Range(-0.1f, 0.1f), Random.Range(-0.22f, 0.22f), Random.Range(-0.1f, 0.1f)));
 
-                stone.transform.position = bounds.center + new Vector3(
-                    Random.Range(-bounds.extents.x * 0.35f, bounds.extents.x * 0.35f),
-                    Random.Range(bounds.extents.y * 0.35f, bounds.extents.y * 0.9f),
-                    Random.Range(-bounds.extents.z * 0.35f, bounds.extents.z * 0.35f));
-                stone.transform.rotation = Random.rotation;
-
-                float size = Random.Range(0.12f, 0.24f);
-                stone.transform.localScale = Vector3.one * size;
-
-                if (primitiveType == PrimitiveType.Cube)
+                if (looseStone != null)
                 {
-                    stone.AddComponent<BoxCollider>();
+                    looseStone.SetWorldScale(Vector3.one * Random.Range(1.85f, 2.35f));
                 }
-                else
-                {
-                    stone.AddComponent<SphereCollider>();
-                }
-
-                Rigidbody rigidbody = stone.AddComponent<Rigidbody>();
-                rigidbody.mass = 0.28f;
-                rigidbody.linearDamping = 0.08f;
-                rigidbody.angularDamping = 0.12f;
-                rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-                rigidbody.AddForce((lateral * Random.Range(0.75f, 1.35f)) + (Vector3.up * Random.Range(0.15f, 0.42f)), ForceMode.Impulse);
-
-                IslandTimedDestroy cleanup = stone.AddComponent<IslandTimedDestroy>();
-                cleanup.Configure(16f);
             }
+        }
+
+        private void TriggerHitReaction()
+        {
+            if (reactionRoutine != null)
+            {
+                StopCoroutine(reactionRoutine);
+            }
+
+            reactionRoutine = StartCoroutine(HitReactionRoutine());
+        }
+
+        private IEnumerator HitReactionRoutine()
+        {
+            float duration = 0.22f;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float normalized = Mathf.Clamp01(elapsed / duration);
+                float pulse = Mathf.Sin(normalized * Mathf.PI) * 0.055f;
+                transform.localPosition = restingPosition + new Vector3(pulse * 0.35f, Mathf.Abs(pulse) * 0.16f, -pulse * 0.24f);
+                transform.localRotation = restingRotation * Quaternion.Euler(pulse * 90f, pulse * 150f, pulse * 55f);
+                yield return null;
+            }
+
+            transform.localPosition = restingPosition;
+            transform.localRotation = restingRotation;
+            reactionRoutine = null;
         }
     }
 }

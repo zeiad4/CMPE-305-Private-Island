@@ -16,6 +16,7 @@ namespace PrivateIsland
         public string InteractionPrompt => interactionPrompt;
         public float InteractionRadius => interactionRadius;
         public virtual Vector3 FocusPoint => transform.position + (Vector3.up * focusHeight);
+        public virtual bool SupportsInteractionKey(KeyCode key) => key == KeyCode.E || key == KeyCode.F;
 
         protected void SetInteractionPrompt(string prompt)
         {
@@ -32,7 +33,7 @@ namespace PrivateIsland
             focusHeight = Mathf.Max(0.1f, height);
         }
 
-        private void OnEnable()
+        protected virtual void OnEnable()
         {
             if (!ActiveInteractables.Contains(this))
             {
@@ -40,12 +41,20 @@ namespace PrivateIsland
             }
         }
 
-        private void OnDisable()
+        protected virtual void OnDisable()
         {
             ActiveInteractables.Remove(this);
         }
 
         public abstract bool CanInteract(Transform interactor);
+
+        public virtual void Interact(Transform interactor, KeyCode key)
+        {
+            if (SupportsInteractionKey(key))
+            {
+                Interact(interactor);
+            }
+        }
 
         public abstract void Interact(Transform interactor);
     }

@@ -173,6 +173,7 @@ namespace PrivateIsland
                 AutoCollectGeneratedIslandReferences();
             }
 
+            EnsureFlowerPickups();
             RebuildRuntimeAutumnLeafPiles();
             SanitizeArrays();
             CacheOriginalMaterials();
@@ -595,6 +596,27 @@ namespace PrivateIsland
             groundRenderers = MergeUnique(groundRenderers, autoGround);
             treeLeafRenderers = MergeUnique(treeLeafRenderers, autoLeaves);
             rockRenderers = MergeUnique(rockRenderers, autoRocks);
+        }
+
+        private void EnsureFlowerPickups()
+        {
+            if (!Application.isPlaying || flowerObjects == null || flowerObjects.Length == 0)
+            {
+                return;
+            }
+
+            foreach (GameObject flowerObject in flowerObjects)
+            {
+                if (flowerObject == null)
+                {
+                    continue;
+                }
+
+                if (flowerObject.GetComponent<IslandFlowerClusterPickup>() == null)
+                {
+                    flowerObject.AddComponent<IslandFlowerClusterPickup>();
+                }
+            }
         }
 
         private void RebuildRuntimeAutumnLeafPiles()
