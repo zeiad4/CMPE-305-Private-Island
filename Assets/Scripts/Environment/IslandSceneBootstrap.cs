@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -52,6 +53,10 @@ namespace PrivateIsland
         private Material houseWoodMaterial;
         private Material houseDetailMaterial;
         private Material houseFloorMaterial;
+        private Material bushAssetMaterial;
+        private Material rockAssetMaterial;
+        private GameObject bushAssetPrefab;
+        private GameObject rockAssetPrefab;
         private bool isRebuilding;
 #if UNITY_EDITOR
         private bool editorRebuildQueued;
@@ -61,6 +66,13 @@ namespace PrivateIsland
         private static Mesh cachedCylinderMesh;
         private static Mesh cachedSphereMesh;
         private static Mesh cachedCapsuleMesh;
+
+        private const string BushAssetResourcePath = "Nature/Bush_Common";
+        private const string RockAssetResourcePath = "Nature/Rock_Medium_1";
+        private const string BushTextureResourcePath = "Nature/Leaves";
+        private const string RockTextureResourcePath = "Nature/Rocks_Diffuse";
+        private const float RockPlacementRadius = 4.4f;
+        private const float BushPlacementRadius = 3.2f;
 
         public float IslandSize => islandSize;
         public float PeakHeight => peakHeight;
@@ -380,11 +392,11 @@ namespace PrivateIsland
             trunkMaterial.SetColor("_BaseColor", new Color(0.3f, 0.22f, 0.14f));
             trunkMaterial.SetFloat("_Smoothness", 0.08f);
 
-            leavesMaterial.SetColor("_BaseColor", new Color(0.23f, 0.44f, 0.2f));
-            leavesMaterial.SetFloat("_Smoothness", 0.05f);
+            leavesMaterial.SetColor("_BaseColor", new Color(0.29f, 0.58f, 0.22f));
+            leavesMaterial.SetFloat("_Smoothness", 0.06f);
 
-            rockMaterial.SetColor("_BaseColor", new Color(0.47f, 0.45f, 0.41f));
-            rockMaterial.SetFloat("_Smoothness", 0.04f);
+            rockMaterial.SetColor("_BaseColor", new Color(0.5f, 0.52f, 0.54f));
+            rockMaterial.SetFloat("_Smoothness", 0.06f);
 
             dockMaterial.SetColor("_BaseColor", new Color(0.52f, 0.38f, 0.24f));
             dockMaterial.SetFloat("_Smoothness", 0.2f);
@@ -406,12 +418,16 @@ namespace PrivateIsland
             houseFloorMaterial.SetColor("_BaseColor", new Color(0.78f, 0.74f, 0.68f));
             houseFloorMaterial.SetFloat("_Smoothness", 0.08f);
 
+            EnsureNatureAssetsLoaded();
+
             System.Random random = new System.Random(seed);
             Vector2 dockDirection = new Vector2(0.42f, 0.91f).normalized;
             Vector2 houseDirection = new Vector2(dockDirection.y, -dockDirection.x).normalized;
             Vector3 characterSpawn = GetCharacterSpawnPosition(dockDirection);
             Vector3 campfirePosition = GetCampfirePosition(dockDirection, characterSpawn);
             Vector3 housePosition = GetSeasideHousePosition(houseDirection);
+            List<Vector2> reservedDecorPositions = new List<Vector2>(rockCount + bushCount);
+            List<float> reservedDecorRadii = new List<float>(rockCount + bushCount);
             IslandSeasideHouseResult houseResult = IslandSeasideHouseBuilder.Build(
                 propsRoot,
                 housePosition,
@@ -427,26 +443,7 @@ namespace PrivateIsland
 
             BuildDock(propsRoot, dockDirection);
             BuildCampfire(propsRoot, campfirePosition, dockDirection);
-
-            int placedRocks = 0;
-            int rockAttempts = 0;
-            while (placedRocks < rockCount && rockAttempts++ < rockCount * 5)
-            {
-                float angle = Mathf.Lerp(0f, Mathf.PI * 2f, (float)random.NextDouble());
-                float radius = Mathf.Lerp(islandSize * 0.14f, islandSize * 0.48f, (float)random.NextDouble());
-                Vector3 position = SampleSurfacePosition(angle, radius);
-
-                if (position.y < seaLevel + 0.2f ||
-                    IsNearCharacterSpawn(position, characterSpawn, 5.5f) ||
-                    IsNearPosition(position, houseResult.Center, houseResult.ClearanceRadius))
-                {
-                    continue;
-                }
-
-                float scale = Mathf.Lerp(1.2f, 3.8f, (float)random.NextDouble());
-                CreateRock(propsRoot, position, scale, angle * Mathf.Rad2Deg, random);
-                placedRocks++;
-            }
+            BuildFixedRockSet(propsRoot, characterSpawn, houseResult.Center, houseResult.ClearanceRadius, reservedDecorPositions, reservedDecorRadii);
 
             int placedTrees = 0;
             int treeAttempts = 0;
@@ -476,25 +473,7 @@ namespace PrivateIsland
                 placedTrees++;
             }
 
-            int placedBushes = 0;
-            int bushAttempts = 0;
-            while (placedBushes < bushCount && bushAttempts++ < bushCount * 5)
-            {
-                float angle = Mathf.Lerp(0f, Mathf.PI * 2f, (float)random.NextDouble());
-                float radius = Mathf.Lerp(islandSize * 0.08f, islandSize * 0.46f, (float)random.NextDouble());
-                Vector3 position = SampleSurfacePosition(angle, radius);
-
-                if (position.y < seaLevel + 0.5f ||
-                    IsNearCharacterSpawn(position, characterSpawn, 7.5f) ||
-                    IsNearPosition(position, houseResult.Center, houseResult.ClearanceRadius))
-                {
-                    continue;
-                }
-
-                float scale = Mathf.Lerp(1.2f, 2.6f, (float)random.NextDouble());
-                CreateBush(propsRoot, position, scale, angle * Mathf.Rad2Deg, random);
-                placedBushes++;
-            }
+            BuildFixedBushSet(propsRoot, characterSpawn, houseResult.Center, houseResult.ClearanceRadius, reservedDecorPositions, reservedDecorRadii);
 
             int placedDriftwood = 0;
             int driftwoodAttempts = 0;
@@ -642,16 +621,16 @@ namespace PrivateIsland
         {
             GameObject rock = new GameObject("Rock");
             rock.transform.SetParent(parent, false);
-            rock.transform.localPosition = position + new Vector3(0f, -scale * 0.12f, 0f);
+            rock.transform.localPosition = position + new Vector3(0f, -scale * 0.08f, 0f);
             rock.transform.localRotation = Quaternion.Euler(
-                RandomRange(random, -9f, 9f),
-                yaw + RandomRange(random, -24f, 24f),
-                RandomRange(random, -7f, 7f));
+                RandomRange(random, -6f, 6f),
+                yaw + RandomRange(random, -18f, 18f),
+                RandomRange(random, -5f, 5f));
 
-            Color mainTint = new Color(0.5f, 0.48f, 0.44f);
-            Color coolTint = new Color(0.42f, 0.45f, 0.48f);
-            Color warmTint = new Color(0.6f, 0.54f, 0.47f);
-            Color shadowTint = new Color(0.36f, 0.38f, 0.4f);
+            Color mainTint = new Color(0.55f, 0.56f, 0.58f);
+            Color coolTint = new Color(0.43f, 0.49f, 0.57f);
+            Color warmTint = new Color(0.68f, 0.63f, 0.54f);
+            Color shadowTint = new Color(0.33f, 0.37f, 0.44f);
 
             switch (random.Next(4))
             {
@@ -674,6 +653,179 @@ namespace PrivateIsland
             IslandRockInteraction interaction = GetOrAddComponent<IslandRockInteraction>(rock);
             interaction.Configure(Mathf.Clamp(scale * 1.18f, 2.2f, 4.6f), scale);
             ConfigureRockObstacleCollider(rock);
+        }
+
+        private void BuildFixedRockSet(
+            Transform parent,
+            Vector3 characterSpawn,
+            Vector3 excludedCenter,
+            float excludedRadius,
+            List<Vector2> reservedDecorPositions,
+            List<float> reservedDecorRadii)
+        {
+            int placedRocks = 0;
+            int candidateCount = Mathf.Max(rockCount * 4, 28);
+
+            for (int i = 0; i < candidateCount && placedRocks < rockCount; i++)
+            {
+                float scale = GetDeterministicRockScale(i);
+                if (!TryGetDeterministicPlacement(
+                        i,
+                        candidateCount,
+                        islandSize * 0.16f,
+                        islandSize * 0.46f,
+                        seaLevel + 0.2f,
+                        characterSpawn,
+                        5.5f,
+                        excludedCenter,
+                        excludedRadius,
+                        0.13f,
+                        RockPlacementRadius * (scale / 1.8f),
+                        reservedDecorPositions,
+                        reservedDecorRadii,
+                        out Vector3 position))
+                {
+                    continue;
+                }
+
+                CreateRockAssetInstance(parent, position, scale);
+                placedRocks++;
+            }
+        }
+
+        private void BuildFixedBushSet(
+            Transform parent,
+            Vector3 characterSpawn,
+            Vector3 excludedCenter,
+            float excludedRadius,
+            List<Vector2> reservedDecorPositions,
+            List<float> reservedDecorRadii)
+        {
+            int placedBushes = 0;
+            int candidateCount = Mathf.Max(bushCount * 4, 32);
+
+            for (int i = 0; i < candidateCount && placedBushes < bushCount; i++)
+            {
+                if (!TryGetDeterministicPlacement(
+                        i,
+                        candidateCount,
+                        islandSize * 0.1f,
+                        islandSize * 0.44f,
+                        seaLevel + 0.5f,
+                        characterSpawn,
+                        7.5f,
+                        excludedCenter,
+                        excludedRadius,
+                        0.37f,
+                        BushPlacementRadius,
+                        reservedDecorPositions,
+                        reservedDecorRadii,
+                        out Vector3 position))
+                {
+                    continue;
+                }
+
+                CreateBushAssetInstance(parent, position);
+                placedBushes++;
+            }
+        }
+
+        private bool TryGetDeterministicPlacement(
+            int index,
+            int candidateCount,
+            float minRadius,
+            float maxRadius,
+            float minimumHeight,
+            Vector3 characterSpawn,
+            float clearance,
+            Vector3 excludedCenter,
+            float excludedRadius,
+            float radialOffset,
+            float footprintRadius,
+            List<Vector2> reservedDecorPositions,
+            List<float> reservedDecorRadii,
+            out Vector3 position)
+        {
+            float angle = Mathf.Repeat(index * 137.50776f, 360f) * Mathf.Deg2Rad;
+            float radialT = Mathf.Repeat((index * 0.61803395f) + radialOffset, 1f);
+            float bandT = (index + 0.5f) / candidateCount;
+            float radius = Mathf.Lerp(minRadius, maxRadius, Mathf.Lerp(radialT, bandT, 0.35f));
+            position = SampleSurfacePosition(angle, radius);
+
+            if (position.y < minimumHeight ||
+                IsNearCharacterSpawn(position, characterSpawn, clearance) ||
+                IsNearPosition(position, excludedCenter, excludedRadius))
+            {
+                return false;
+            }
+
+            if (!TryReserveDecorFootprint(position, footprintRadius, reservedDecorPositions, reservedDecorRadii))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private void CreateRockAssetInstance(Transform parent, Vector3 position, float scale)
+        {
+            if (rockAssetPrefab == null)
+            {
+                CreateRock(parent, position, scale, 0f, new System.Random(0));
+                return;
+            }
+
+            GameObject rock = new GameObject("Rock");
+            rock.transform.SetParent(parent, false);
+            rock.transform.localPosition = position + new Vector3(0f, -0.06f * (scale / 1.8f), 0f);
+            rock.transform.localRotation = Quaternion.Euler(0f, Mathf.Repeat((position.x * 3.7f) + (position.z * 5.1f), 360f), 0f);
+            rock.transform.localScale = Vector3.one * scale;
+
+            GameObject visual = Instantiate(rockAssetPrefab, rock.transform);
+            visual.name = "Visual";
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localRotation = Quaternion.identity;
+            visual.transform.localScale = Vector3.one;
+            ApplyMaterialToHierarchy(visual.transform, rockAssetMaterial);
+            ConfigureRockObstacleCollider(rock);
+
+            IslandRockInteraction interaction = GetOrAddComponent<IslandRockInteraction>(rock);
+            interaction.Configure(Mathf.Clamp(scale * 1.68f, 2.3f, 4.4f), scale);
+        }
+
+        private void CreateBushAssetInstance(Transform parent, Vector3 position)
+        {
+            if (bushAssetPrefab == null)
+            {
+                CreateBush(parent, position, 1.45f, 0f, new System.Random(0));
+                return;
+            }
+
+            GameObject bush = new GameObject("Bush");
+            bush.transform.SetParent(parent, false);
+            bush.transform.localPosition = position;
+            bush.transform.localRotation = Quaternion.Euler(0f, Mathf.Repeat((position.x * 4.1f) + (position.z * 6.3f), 360f), 0f);
+            bush.transform.localScale = Vector3.one * 1.6f;
+
+            GameObject visual = Instantiate(bushAssetPrefab, bush.transform);
+            visual.name = "Visual";
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localRotation = Quaternion.identity;
+            visual.transform.localScale = Vector3.one;
+            ApplyMaterialToHierarchy(visual.transform, bushAssetMaterial);
+
+            IslandBushReactive interaction = GetOrAddComponent<IslandBushReactive>(bush);
+            interaction.Configure(1.4f);
+        }
+
+        private void EnsureNatureAssetsLoaded()
+        {
+            bushAssetPrefab ??= Resources.Load<GameObject>(BushAssetResourcePath);
+            rockAssetPrefab ??= Resources.Load<GameObject>(RockAssetResourcePath);
+
+            bushAssetMaterial ??= CreateNatureAssetMaterial("Island Bush Asset Material", BushTextureResourcePath, true, true);
+            rockAssetMaterial ??= CreateNatureAssetMaterial("Island Rock Asset Material", RockTextureResourcePath, false, false);
+            ApplyMaterialTint(rockAssetMaterial, new Color(0.82f, 0.84f, 0.88f));
         }
 
         private void CreateRoundedRockVariant(
@@ -1525,10 +1677,16 @@ namespace PrivateIsland
                 return;
             }
 
-            SphereCollider collider = GetOrAddComponent<SphereCollider>(rock);
+            BoxCollider collider = GetOrAddComponent<BoxCollider>(rock);
             collider.isTrigger = false;
             collider.center = rock.transform.InverseTransformPoint(bounds.center);
-            collider.radius = Mathf.Max(0.45f, Mathf.Max(bounds.extents.x, bounds.extents.z) * 0.72f);
+
+            Vector3 localSize = rock.transform.InverseTransformVector(bounds.size);
+            localSize = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
+            localSize.x = Mathf.Max(localSize.x, 0.8f);
+            localSize.y = Mathf.Max(localSize.y, 0.8f);
+            localSize.z = Mathf.Max(localSize.z, 0.8f);
+            collider.size = localSize;
         }
 
         private void ConfigurePalmObstacleCollider(GameObject palm, float height)
@@ -1636,6 +1794,50 @@ namespace PrivateIsland
             return material;
         }
 
+        private static Material CreateNatureAssetMaterial(string materialName, string textureResourcePath, bool alphaClip, bool doubleSided)
+        {
+            Material material = CreateRuntimeMaterial(materialName);
+            Texture2D albedo = string.IsNullOrEmpty(textureResourcePath) ? null : Resources.Load<Texture2D>(textureResourcePath);
+
+            if (albedo != null)
+            {
+                material.SetTexture("_BaseMap", albedo);
+                material.SetTexture("_MainTex", albedo);
+                material.mainTexture = albedo;
+            }
+
+            material.color = Color.white;
+            material.SetColor("_BaseColor", Color.white);
+            material.SetColor("_Color", Color.white);
+            material.SetFloat("_Smoothness", alphaClip ? 0f : 0.05f);
+
+            if (alphaClip)
+            {
+                material.EnableKeyword("_ALPHATEST_ON");
+                material.SetFloat("_AlphaClip", 1f);
+                material.SetFloat("_Cutoff", 0.33f);
+            }
+
+            if (doubleSided)
+            {
+                material.SetFloat("_Cull", 0f);
+            }
+
+            return material;
+        }
+
+        private static void ApplyMaterialTint(Material material, Color tint)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            material.color = tint;
+            material.SetColor("_BaseColor", tint);
+            material.SetColor("_Color", tint);
+        }
+
         private static Mesh CreateRuntimeMesh(string meshName)
         {
             return new Mesh
@@ -1690,9 +1892,73 @@ namespace PrivateIsland
             renderer.SetPropertyBlock(block);
         }
 
+        private static void ApplyMaterialToHierarchy(Transform root, Material material)
+        {
+            if (root == null || material == null)
+            {
+                return;
+            }
+
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                Material[] materials = renderer.sharedMaterials;
+
+                if (materials == null || materials.Length == 0)
+                {
+                    renderer.sharedMaterial = material;
+                }
+                else
+                {
+                    for (int j = 0; j < materials.Length; j++)
+                    {
+                        materials[j] = material;
+                    }
+
+                    renderer.sharedMaterials = materials;
+                }
+
+                renderer.shadowCastingMode = ShadowCastingMode.On;
+                renderer.receiveShadows = true;
+            }
+        }
+
         private static float RandomWave(float value, float offset)
         {
             return Mathf.Sin(value + offset);
+        }
+
+        private static float GetDeterministicRockScale(int index)
+        {
+            float t = Mathf.Repeat((index * 0.7548777f) + 0.21f, 1f);
+            return Mathf.Lerp(1.3f, 2.4f, t);
+        }
+
+        private static bool TryReserveDecorFootprint(
+            Vector3 position,
+            float footprintRadius,
+            List<Vector2> reservedDecorPositions,
+            List<float> reservedDecorRadii)
+        {
+            if (reservedDecorPositions == null || reservedDecorRadii == null)
+            {
+                return true;
+            }
+
+            Vector2 planarPosition = new Vector2(position.x, position.z);
+            for (int i = 0; i < reservedDecorPositions.Count; i++)
+            {
+                float combinedRadius = footprintRadius + reservedDecorRadii[i];
+                if ((planarPosition - reservedDecorPositions[i]).sqrMagnitude < combinedRadius * combinedRadius)
+                {
+                    return false;
+                }
+            }
+
+            reservedDecorPositions.Add(planarPosition);
+            reservedDecorRadii.Add(footprintRadius);
+            return true;
         }
 
         private static Mesh GetPrimitiveMesh(PrimitiveType primitiveType)
@@ -1780,6 +2046,8 @@ namespace PrivateIsland
             ReleaseObject(houseWoodMaterial);
             ReleaseObject(houseDetailMaterial);
             ReleaseObject(houseFloorMaterial);
+            ReleaseObject(bushAssetMaterial);
+            ReleaseObject(rockAssetMaterial);
 
             terrainMesh = null;
             waterMesh = null;
@@ -1803,6 +2071,8 @@ namespace PrivateIsland
             houseWoodMaterial = null;
             houseDetailMaterial = null;
             houseFloorMaterial = null;
+            bushAssetMaterial = null;
+            rockAssetMaterial = null;
         }
 
         private static void ReleaseObject(UnityEngine.Object obj)

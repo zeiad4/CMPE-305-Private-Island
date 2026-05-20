@@ -2724,10 +2724,10 @@ namespace PrivateIsland
         {
             return season switch
             {
-                Season.Spring => new Color(0.46f, 0.46f, 0.44f),
-                Season.Summer => new Color(0.43f, 0.42f, 0.4f),
-                Season.Autumn => new Color(0.56f, 0.47f, 0.38f),
-                Season.Winter => new Color(0.78f, 0.82f, 0.86f),
+                Season.Spring => new Color(0.68f, 0.7f, 0.72f),
+                Season.Summer => new Color(0.64f, 0.66f, 0.69f),
+                Season.Autumn => new Color(0.62f, 0.63f, 0.65f),
+                Season.Winter => new Color(0.8f, 0.83f, 0.87f),
                 _ => Color.white
             };
         }
