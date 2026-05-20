@@ -7,6 +7,10 @@ namespace PrivateIsland
         [SerializeField] private float moveSpeed = 8f;
         [SerializeField] private float turnSpeed = 540f;
         [SerializeField] private float groundOffset = 0.02f;
+        [SerializeField] private float collisionRadius = 0.45f;
+        [SerializeField] private float collisionHeight = 1.8f;
+
+        private readonly Collider[] obstacleHits = new Collider[12];
 
         private float islandSize;
         private float peakHeight;
@@ -86,6 +90,12 @@ namespace PrivateIsland
             Vector3 nextPosition = transform.position + (moveDirection * moveSpeed * Time.deltaTime);
             nextPosition = ClampToIsland(nextPosition);
             nextPosition.y = SampleGroundHeight(nextPosition) + groundOffset;
+
+            if (IsBlockedByRock(nextPosition))
+            {
+                return;
+            }
+
             transform.position = nextPosition;
 
             if (!hasViewYaw)
@@ -187,6 +197,37 @@ namespace PrivateIsland
             float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
             currentVelocity = (transform.position - previousPosition) / deltaTime;
             previousPosition = transform.position;
+        }
+
+        private bool IsBlockedByRock(Vector3 candidatePosition)
+        {
+            float capsuleHeight = Mathf.Max(collisionHeight, collisionRadius * 2f);
+            Vector3 bottom = candidatePosition + (Vector3.up * collisionRadius);
+            Vector3 top = candidatePosition + (Vector3.up * (capsuleHeight - collisionRadius));
+            int hitCount = Physics.OverlapCapsuleNonAlloc(bottom, top, collisionRadius, obstacleHits, Physics.AllLayers, QueryTriggerInteraction.Ignore);
+
+            for (int i = 0; i < hitCount; i++)
+            {
+                Collider hit = obstacleHits[i];
+                obstacleHits[i] = null;
+
+                if (hit == null)
+                {
+                    continue;
+                }
+
+                if (hit.transform == transform || hit.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+
+                if (hit.GetComponentInParent<IslandRockInteraction>() != null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using System.Collections.Generic;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -44,6 +45,10 @@ namespace PrivateIsland
         private Material characterShortsMaterial;
         private Material characterStrawMaterial;
         private Material characterHairMaterial;
+        private Material bushAssetMaterial;
+        private Material rockAssetMaterial;
+        private GameObject bushAssetPrefab;
+        private GameObject rockAssetPrefab;
         private bool isRebuilding;
 #if UNITY_EDITOR
         private bool editorRebuildQueued;
@@ -53,6 +58,13 @@ namespace PrivateIsland
         private static Mesh cachedCylinderMesh;
         private static Mesh cachedSphereMesh;
         private static Mesh cachedCapsuleMesh;
+
+        private const string BushAssetResourcePath = "Nature/Bush_Common";
+        private const string RockAssetResourcePath = "Nature/Rock_Medium_1";
+        private const string BushTextureResourcePath = "Nature/Leaves";
+        private const string RockTextureResourcePath = "Nature/Rocks_Diffuse";
+        private const float RockPlacementRadius = 4.4f;
+        private const float BushPlacementRadius = 3.2f;
 
         private void Reset()
         {
@@ -369,38 +381,26 @@ namespace PrivateIsland
             trunkMaterial.SetColor("_BaseColor", new Color(0.3f, 0.22f, 0.14f));
             trunkMaterial.SetFloat("_Smoothness", 0.08f);
 
-            leavesMaterial.SetColor("_BaseColor", new Color(0.23f, 0.44f, 0.2f));
-            leavesMaterial.SetFloat("_Smoothness", 0.05f);
+            leavesMaterial.SetColor("_BaseColor", new Color(0.29f, 0.58f, 0.22f));
+            leavesMaterial.SetFloat("_Smoothness", 0.06f);
 
-            rockMaterial.SetColor("_BaseColor", new Color(0.47f, 0.45f, 0.41f));
-            rockMaterial.SetFloat("_Smoothness", 0.04f);
+            rockMaterial.SetColor("_BaseColor", new Color(0.5f, 0.52f, 0.54f));
+            rockMaterial.SetFloat("_Smoothness", 0.06f);
 
             dockMaterial.SetColor("_BaseColor", new Color(0.52f, 0.38f, 0.24f));
             dockMaterial.SetFloat("_Smoothness", 0.2f);
 
+            EnsureNatureAssetsLoaded();
+
             System.Random random = new System.Random(seed);
             Vector2 dockDirection = new Vector2(0.42f, 0.91f).normalized;
             Vector3 characterSpawn = GetCharacterSpawnPosition(dockDirection);
+            List<Vector2> reservedDecorPositions = new List<Vector2>(rockCount + bushCount);
+            List<float> reservedDecorRadii = new List<float>(rockCount + bushCount);
 
             BuildDock(propsRoot, dockDirection);
 
-            int placedRocks = 0;
-            int rockAttempts = 0;
-            while (placedRocks < rockCount && rockAttempts++ < rockCount * 5)
-            {
-                float angle = Mathf.Lerp(0f, Mathf.PI * 2f, (float)random.NextDouble());
-                float radius = Mathf.Lerp(islandSize * 0.14f, islandSize * 0.48f, (float)random.NextDouble());
-                Vector3 position = SampleSurfacePosition(angle, radius);
-
-                if (position.y < seaLevel + 0.2f || IsNearCharacterSpawn(position, characterSpawn, 5.5f))
-                {
-                    continue;
-                }
-
-                float scale = Mathf.Lerp(1.2f, 3.8f, (float)random.NextDouble());
-                CreateRock(propsRoot, position, scale, angle * Mathf.Rad2Deg, random);
-                placedRocks++;
-            }
+            BuildFixedRockSet(propsRoot, characterSpawn, reservedDecorPositions, reservedDecorRadii);
 
             int placedTrees = 0;
             int treeAttempts = 0;
@@ -428,23 +428,7 @@ namespace PrivateIsland
                 placedTrees++;
             }
 
-            int placedBushes = 0;
-            int bushAttempts = 0;
-            while (placedBushes < bushCount && bushAttempts++ < bushCount * 5)
-            {
-                float angle = Mathf.Lerp(0f, Mathf.PI * 2f, (float)random.NextDouble());
-                float radius = Mathf.Lerp(islandSize * 0.08f, islandSize * 0.46f, (float)random.NextDouble());
-                Vector3 position = SampleSurfacePosition(angle, radius);
-
-                if (position.y < seaLevel + 0.5f || IsNearCharacterSpawn(position, characterSpawn, 7.5f))
-                {
-                    continue;
-                }
-
-                float scale = Mathf.Lerp(1.2f, 2.6f, (float)random.NextDouble());
-                CreateBush(propsRoot, position, scale, angle * Mathf.Rad2Deg, random);
-                placedBushes++;
-            }
+            BuildFixedBushSet(propsRoot, characterSpawn, reservedDecorPositions, reservedDecorRadii);
 
             int placedDriftwood = 0;
             int driftwoodAttempts = 0;
@@ -580,16 +564,16 @@ namespace PrivateIsland
         {
             GameObject rock = new GameObject("Rock");
             rock.transform.SetParent(parent, false);
-            rock.transform.localPosition = position + new Vector3(0f, -scale * 0.12f, 0f);
+            rock.transform.localPosition = position + new Vector3(0f, -scale * 0.08f, 0f);
             rock.transform.localRotation = Quaternion.Euler(
-                RandomRange(random, -9f, 9f),
-                yaw + RandomRange(random, -24f, 24f),
-                RandomRange(random, -7f, 7f));
+                RandomRange(random, -6f, 6f),
+                yaw + RandomRange(random, -18f, 18f),
+                RandomRange(random, -5f, 5f));
 
-            Color mainTint = new Color(0.5f, 0.48f, 0.44f);
-            Color coolTint = new Color(0.42f, 0.45f, 0.48f);
-            Color warmTint = new Color(0.6f, 0.54f, 0.47f);
-            Color shadowTint = new Color(0.36f, 0.38f, 0.4f);
+            Color mainTint = new Color(0.55f, 0.56f, 0.58f);
+            Color coolTint = new Color(0.43f, 0.49f, 0.57f);
+            Color warmTint = new Color(0.68f, 0.63f, 0.54f);
+            Color shadowTint = new Color(0.33f, 0.37f, 0.44f);
 
             switch (random.Next(4))
             {
@@ -608,9 +592,171 @@ namespace PrivateIsland
             }
 
             CreateRockDebrisRing(rock.transform, scale, mainTint, shadowTint, random);
+            ConfigureRockObstacleCollider(rock);
 
             IslandRockInteraction interaction = GetOrAddComponent<IslandRockInteraction>(rock);
             interaction.Configure(Mathf.Clamp(scale * 1.18f, 2.2f, 4.6f), scale);
+        }
+
+        private void BuildFixedRockSet(
+            Transform parent,
+            Vector3 characterSpawn,
+            List<Vector2> reservedDecorPositions,
+            List<float> reservedDecorRadii)
+        {
+            int placedRocks = 0;
+            int candidateCount = Mathf.Max(rockCount * 4, 28);
+
+            for (int i = 0; i < candidateCount && placedRocks < rockCount; i++)
+            {
+                float scale = GetDeterministicRockScale(i);
+                if (!TryGetDeterministicPlacement(
+                        i,
+                        candidateCount,
+                        islandSize * 0.16f,
+                        islandSize * 0.46f,
+                        seaLevel + 0.2f,
+                        characterSpawn,
+                        5.5f,
+                        0.13f,
+                        RockPlacementRadius * (scale / 1.8f),
+                        reservedDecorPositions,
+                        reservedDecorRadii,
+                        out Vector3 position))
+                {
+                    continue;
+                }
+
+                CreateRockAssetInstance(parent, position, scale);
+                placedRocks++;
+            }
+        }
+
+        private void BuildFixedBushSet(
+            Transform parent,
+            Vector3 characterSpawn,
+            List<Vector2> reservedDecorPositions,
+            List<float> reservedDecorRadii)
+        {
+            int placedBushes = 0;
+            int candidateCount = Mathf.Max(bushCount * 4, 32);
+
+            for (int i = 0; i < candidateCount && placedBushes < bushCount; i++)
+            {
+                if (!TryGetDeterministicPlacement(
+                        i,
+                        candidateCount,
+                        islandSize * 0.1f,
+                        islandSize * 0.44f,
+                        seaLevel + 0.5f,
+                        characterSpawn,
+                        7.5f,
+                        0.37f,
+                        BushPlacementRadius,
+                        reservedDecorPositions,
+                        reservedDecorRadii,
+                        out Vector3 position))
+                {
+                    continue;
+                }
+
+                CreateBushAssetInstance(parent, position);
+                placedBushes++;
+            }
+        }
+
+        private bool TryGetDeterministicPlacement(
+            int index,
+            int candidateCount,
+            float minRadius,
+            float maxRadius,
+            float minimumHeight,
+            Vector3 characterSpawn,
+            float clearance,
+            float radialOffset,
+            float footprintRadius,
+            List<Vector2> reservedDecorPositions,
+            List<float> reservedDecorRadii,
+            out Vector3 position)
+        {
+            float angle = Mathf.Repeat(index * 137.50776f, 360f) * Mathf.Deg2Rad;
+            float radialT = Mathf.Repeat((index * 0.61803395f) + radialOffset, 1f);
+            float bandT = (index + 0.5f) / candidateCount;
+            float radius = Mathf.Lerp(minRadius, maxRadius, Mathf.Lerp(radialT, bandT, 0.35f));
+            position = SampleSurfacePosition(angle, radius);
+
+            if (position.y < minimumHeight || IsNearCharacterSpawn(position, characterSpawn, clearance))
+            {
+                return false;
+            }
+
+            if (!TryReserveDecorFootprint(position, footprintRadius, reservedDecorPositions, reservedDecorRadii))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private void CreateRockAssetInstance(Transform parent, Vector3 position, float scale)
+        {
+            if (rockAssetPrefab == null)
+            {
+                CreateRock(parent, position, scale, 0f, new System.Random(0));
+                return;
+            }
+
+            GameObject rock = new GameObject("Rock");
+            rock.transform.SetParent(parent, false);
+            rock.transform.localPosition = position + new Vector3(0f, -0.06f * (scale / 1.8f), 0f);
+            rock.transform.localRotation = Quaternion.identity;
+            rock.transform.localScale = Vector3.one * scale;
+
+            GameObject visual = Instantiate(rockAssetPrefab, rock.transform);
+            visual.name = "Visual";
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localRotation = Quaternion.identity;
+            visual.transform.localScale = Vector3.one;
+            ApplyMaterialToHierarchy(visual.transform, rockAssetMaterial);
+            ConfigureRockObstacleCollider(rock);
+
+            IslandRockInteraction interaction = GetOrAddComponent<IslandRockInteraction>(rock);
+            interaction.Configure(Mathf.Clamp(scale * 1.68f, 2.3f, 4.4f), scale);
+        }
+
+        private void CreateBushAssetInstance(Transform parent, Vector3 position)
+        {
+            if (bushAssetPrefab == null)
+            {
+                CreateBush(parent, position, 1.45f, 0f, new System.Random(0));
+                return;
+            }
+
+            GameObject bush = new GameObject("Bush");
+            bush.transform.SetParent(parent, false);
+            bush.transform.localPosition = position;
+            bush.transform.localRotation = Quaternion.identity;
+            bush.transform.localScale = Vector3.one * 1.6f;
+
+            GameObject visual = Instantiate(bushAssetPrefab, bush.transform);
+            visual.name = "Visual";
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localRotation = Quaternion.identity;
+            visual.transform.localScale = Vector3.one;
+            ApplyMaterialToHierarchy(visual.transform, bushAssetMaterial);
+
+            IslandBushReactive interaction = GetOrAddComponent<IslandBushReactive>(bush);
+            interaction.Configure(1.4f);
+        }
+
+        private void EnsureNatureAssetsLoaded()
+        {
+            bushAssetPrefab ??= Resources.Load<GameObject>(BushAssetResourcePath);
+            rockAssetPrefab ??= Resources.Load<GameObject>(RockAssetResourcePath);
+
+            bushAssetMaterial ??= CreateNatureAssetMaterial("Island Bush Asset Material", BushTextureResourcePath, true, true);
+            rockAssetMaterial ??= CreateNatureAssetMaterial("Island Rock Asset Material", null, false, false);
+            ApplyMaterialTint(rockAssetMaterial, new Color(0.66f, 0.68f, 0.71f));
         }
 
         private void CreateRoundedRockVariant(
@@ -622,11 +768,11 @@ namespace PrivateIsland
             Color shadowTint,
             System.Random random)
         {
-            CreateRockPiece(parent, "Core", PrimitiveType.Sphere, new Vector3(0f, scale * 0.34f, 0f), new Vector3(scale * 0.96f, scale * 0.62f, scale * 0.88f), new Vector3(-6f, 14f, 4f), mainTint);
-            CreateRockPiece(parent, "ShoulderA", PrimitiveType.Sphere, new Vector3(-scale * 0.3f, scale * 0.3f, scale * 0.16f), new Vector3(scale * 0.54f, scale * 0.38f, scale * 0.5f), new Vector3(14f, -8f, 18f), coolTint);
-            CreateRockPiece(parent, "ShoulderB", PrimitiveType.Sphere, new Vector3(scale * 0.26f, scale * 0.28f, -scale * 0.12f), new Vector3(scale * 0.5f, scale * 0.36f, scale * 0.44f), new Vector3(-12f, 22f, -10f), shadowTint);
-            CreateRockPiece(parent, "Cap", PrimitiveType.Capsule, new Vector3(scale * 0.04f, scale * 0.56f, scale * 0.02f), new Vector3(scale * 0.28f, scale * 0.22f, scale * 0.34f), new Vector3(18f, 10f, -8f), warmTint);
-            CreateRockPiece(parent, "Wedge", PrimitiveType.Cube, new Vector3(-scale * 0.14f, scale * 0.2f, scale * 0.34f), new Vector3(scale * 0.34f, scale * 0.12f, scale * 0.24f), new Vector3(8f, -16f, 14f), new Color(0.64f, 0.61f, 0.56f));
+            CreateRockPiece(parent, "Base", PrimitiveType.Capsule, new Vector3(0f, scale * 0.24f, 0f), new Vector3(scale * 1.02f, scale * 0.3f, scale * 0.82f), new Vector3(-8f, 14f, 3f), mainTint);
+            CreateRockPiece(parent, "LeftMass", PrimitiveType.Cube, new Vector3(-scale * 0.28f, scale * 0.38f, scale * 0.12f), new Vector3(scale * 0.48f, scale * 0.28f, scale * 0.4f), new Vector3(12f, -10f, 18f), coolTint);
+            CreateRockPiece(parent, "RightMass", PrimitiveType.Cube, new Vector3(scale * 0.24f, scale * 0.34f, -scale * 0.08f), new Vector3(scale * 0.44f, scale * 0.24f, scale * 0.38f), new Vector3(-10f, 20f, -11f), shadowTint);
+            CreateRockPiece(parent, "TopCap", PrimitiveType.Cube, new Vector3(scale * 0.02f, scale * 0.56f, scale * 0.04f), new Vector3(scale * 0.34f, scale * 0.14f, scale * 0.3f), new Vector3(14f, 8f, -5f), warmTint);
+            CreateRockPiece(parent, "FacePlate", PrimitiveType.Cube, new Vector3(-scale * 0.06f, scale * 0.42f, scale * 0.3f), new Vector3(scale * 0.3f, scale * 0.22f, scale * 0.08f), new Vector3(2f, 18f, 8f), new Color(0.77f, 0.73f, 0.65f));
         }
 
         private void CreateLayeredRockVariant(
@@ -638,11 +784,11 @@ namespace PrivateIsland
             Color shadowTint,
             System.Random random)
         {
-            CreateRockPiece(parent, "BaseShelf", PrimitiveType.Cube, new Vector3(0f, scale * 0.22f, 0f), new Vector3(scale * 1.08f, scale * 0.26f, scale * 0.76f), new Vector3(-7f, 10f, 3f), mainTint);
-            CreateRockPiece(parent, "RearShelf", PrimitiveType.Cube, new Vector3(-scale * 0.14f, scale * 0.38f, -scale * 0.18f), new Vector3(scale * 0.78f, scale * 0.18f, scale * 0.48f), new Vector3(11f, -18f, 9f), shadowTint);
-            CreateRockPiece(parent, "TopShelf", PrimitiveType.Cube, new Vector3(scale * 0.08f, scale * 0.54f, scale * 0.06f), new Vector3(scale * 0.72f, scale * 0.12f, scale * 0.4f), new Vector3(6f, 22f, -4f), warmTint);
-            CreateRockPiece(parent, "CornerMass", PrimitiveType.Capsule, new Vector3(scale * 0.38f, scale * 0.26f, scale * 0.04f), new Vector3(scale * 0.28f, scale * 0.22f, scale * 0.3f), new Vector3(-8f, 18f, -14f), coolTint);
-            CreateRockPiece(parent, "FracturePlate", PrimitiveType.Cube, new Vector3(-scale * 0.12f, scale * 0.5f, scale * 0.24f), new Vector3(scale * 0.36f, scale * 0.06f, scale * 0.14f), new Vector3(-20f, 26f, 16f), new Color(0.72f, 0.69f, 0.62f));
+            CreateRockPiece(parent, "BaseShelf", PrimitiveType.Cube, new Vector3(0f, scale * 0.18f, 0f), new Vector3(scale * 1.08f, scale * 0.22f, scale * 0.72f), new Vector3(-5f, 8f, 2f), mainTint);
+            CreateRockPiece(parent, "MidShelf", PrimitiveType.Cube, new Vector3(-scale * 0.08f, scale * 0.36f, -scale * 0.12f), new Vector3(scale * 0.84f, scale * 0.17f, scale * 0.52f), new Vector3(8f, -16f, 7f), shadowTint);
+            CreateRockPiece(parent, "TopShelf", PrimitiveType.Cube, new Vector3(scale * 0.08f, scale * 0.54f, scale * 0.04f), new Vector3(scale * 0.68f, scale * 0.12f, scale * 0.38f), new Vector3(4f, 18f, -2f), warmTint);
+            CreateRockPiece(parent, "SideButtress", PrimitiveType.Cube, new Vector3(scale * 0.38f, scale * 0.26f, 0f), new Vector3(scale * 0.24f, scale * 0.22f, scale * 0.28f), new Vector3(-6f, 16f, -12f), coolTint);
+            CreateRockPiece(parent, "SunPlate", PrimitiveType.Cube, new Vector3(-scale * 0.06f, scale * 0.48f, scale * 0.24f), new Vector3(scale * 0.4f, scale * 0.06f, scale * 0.16f), new Vector3(-18f, 24f, 14f), new Color(0.78f, 0.75f, 0.67f));
         }
 
         private void CreateOutcropRockVariant(
@@ -654,11 +800,11 @@ namespace PrivateIsland
             Color shadowTint,
             System.Random random)
         {
-            CreateRockPiece(parent, "Base", PrimitiveType.Capsule, new Vector3(0f, scale * 0.26f, 0f), new Vector3(scale * 0.82f, scale * 0.32f, scale * 0.68f), new Vector3(-10f, 6f, 2f), mainTint);
-            CreateRockPiece(parent, "Fin", PrimitiveType.Cube, new Vector3(scale * 0.02f, scale * 0.62f, -scale * 0.08f), new Vector3(scale * 0.22f, scale * 0.54f, scale * 0.5f), new Vector3(10f, -8f, 20f), warmTint);
-            CreateRockPiece(parent, "Lean", PrimitiveType.Cube, new Vector3(-scale * 0.28f, scale * 0.46f, scale * 0.14f), new Vector3(scale * 0.34f, scale * 0.4f, scale * 0.28f), new Vector3(-12f, 28f, -18f), coolTint);
-            CreateRockPiece(parent, "Support", PrimitiveType.Cube, new Vector3(scale * 0.26f, scale * 0.24f, scale * 0.2f), new Vector3(scale * 0.28f, scale * 0.16f, scale * 0.2f), new Vector3(18f, 18f, -10f), shadowTint);
-            CreateRockPiece(parent, "SplitFace", PrimitiveType.Cube, new Vector3(scale * 0.08f, scale * 0.48f, scale * 0.24f), new Vector3(scale * 0.18f, scale * 0.44f, scale * 0.08f), new Vector3(4f, 32f, 8f), new Color(0.7f, 0.67f, 0.6f));
+            CreateRockPiece(parent, "Base", PrimitiveType.Cube, new Vector3(0f, scale * 0.22f, 0f), new Vector3(scale * 0.88f, scale * 0.26f, scale * 0.64f), new Vector3(-10f, 4f, 2f), mainTint);
+            CreateRockPiece(parent, "Spine", PrimitiveType.Cube, new Vector3(scale * 0.06f, scale * 0.62f, -scale * 0.06f), new Vector3(scale * 0.2f, scale * 0.56f, scale * 0.46f), new Vector3(8f, -6f, 16f), warmTint);
+            CreateRockPiece(parent, "LeanSlab", PrimitiveType.Cube, new Vector3(-scale * 0.3f, scale * 0.44f, scale * 0.12f), new Vector3(scale * 0.32f, scale * 0.34f, scale * 0.26f), new Vector3(-8f, 24f, -14f), coolTint);
+            CreateRockPiece(parent, "Wing", PrimitiveType.Cube, new Vector3(scale * 0.28f, scale * 0.28f, scale * 0.18f), new Vector3(scale * 0.26f, scale * 0.14f, scale * 0.18f), new Vector3(16f, 14f, -8f), shadowTint);
+            CreateRockPiece(parent, "FaceShard", PrimitiveType.Cube, new Vector3(scale * 0.04f, scale * 0.5f, scale * 0.2f), new Vector3(scale * 0.16f, scale * 0.36f, scale * 0.08f), new Vector3(2f, 28f, 4f), new Color(0.74f, 0.71f, 0.64f));
         }
 
         private void CreateSplitRockVariant(
@@ -670,28 +816,28 @@ namespace PrivateIsland
             Color shadowTint,
             System.Random random)
         {
-            CreateRockPiece(parent, "MassA", PrimitiveType.Capsule, new Vector3(-scale * 0.18f, scale * 0.28f, 0f), new Vector3(scale * 0.58f, scale * 0.34f, scale * 0.48f), new Vector3(-6f, 20f, 14f), mainTint);
-            CreateRockPiece(parent, "MassB", PrimitiveType.Capsule, new Vector3(scale * 0.22f, scale * 0.3f, -scale * 0.02f), new Vector3(scale * 0.62f, scale * 0.36f, scale * 0.5f), new Vector3(10f, -18f, -10f), coolTint);
-            CreateRockPiece(parent, "Bridge", PrimitiveType.Cube, new Vector3(0f, scale * 0.18f, -scale * 0.16f), new Vector3(scale * 0.62f, scale * 0.12f, scale * 0.26f), new Vector3(-4f, 8f, 4f), shadowTint);
-            CreateRockPiece(parent, "TopShard", PrimitiveType.Cube, new Vector3(scale * 0.05f, scale * 0.58f, scale * 0.1f), new Vector3(scale * 0.24f, scale * 0.2f, scale * 0.28f), new Vector3(18f, 12f, -18f), warmTint);
-            CreateRockPiece(parent, "FacePlate", PrimitiveType.Cube, new Vector3(-scale * 0.08f, scale * 0.42f, scale * 0.22f), new Vector3(scale * 0.18f, scale * 0.32f, scale * 0.08f), new Vector3(-10f, 26f, 6f), new Color(0.72f, 0.7f, 0.64f));
+            CreateRockPiece(parent, "MassA", PrimitiveType.Cube, new Vector3(-scale * 0.2f, scale * 0.28f, 0f), new Vector3(scale * 0.56f, scale * 0.3f, scale * 0.44f), new Vector3(-4f, 18f, 12f), mainTint);
+            CreateRockPiece(parent, "MassB", PrimitiveType.Cube, new Vector3(scale * 0.22f, scale * 0.3f, -scale * 0.02f), new Vector3(scale * 0.58f, scale * 0.32f, scale * 0.46f), new Vector3(8f, -16f, -8f), coolTint);
+            CreateRockPiece(parent, "CrackBase", PrimitiveType.Cube, new Vector3(0f, scale * 0.18f, -scale * 0.14f), new Vector3(scale * 0.58f, scale * 0.1f, scale * 0.24f), new Vector3(-2f, 8f, 2f), shadowTint);
+            CreateRockPiece(parent, "TopBeam", PrimitiveType.Cube, new Vector3(scale * 0.04f, scale * 0.58f, scale * 0.08f), new Vector3(scale * 0.28f, scale * 0.16f, scale * 0.26f), new Vector3(12f, 10f, -12f), warmTint);
+            CreateRockPiece(parent, "FrontPlate", PrimitiveType.Cube, new Vector3(-scale * 0.04f, scale * 0.44f, scale * 0.22f), new Vector3(scale * 0.22f, scale * 0.28f, scale * 0.08f), new Vector3(-8f, 24f, 5f), new Color(0.76f, 0.73f, 0.66f));
         }
 
         private void CreateRockDebrisRing(Transform parent, float scale, Color mainTint, Color shadowTint, System.Random random)
         {
-            int debrisCount = random.Next(2, 5);
+            int debrisCount = random.Next(3, 6);
             for (int i = 0; i < debrisCount; i++)
             {
                 float angle = (360f / debrisCount) * i + RandomRange(random, -24f, 24f);
-                float radius = scale * RandomRange(random, 0.36f, 0.62f);
+                float radius = scale * RandomRange(random, 0.34f, 0.58f);
                 Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, scale * RandomRange(random, 0.02f, 0.08f), 0f);
                 CreateRockPiece(
                     parent,
                     $"Debris_{i}",
-                    PrimitiveType.Cube,
+                    random.NextDouble() > 0.45d ? PrimitiveType.Cube : PrimitiveType.Capsule,
                     offset,
-                    new Vector3(scale * RandomRange(random, 0.1f, 0.18f), scale * RandomRange(random, 0.05f, 0.09f), scale * RandomRange(random, 0.08f, 0.16f)),
-                    new Vector3(RandomRange(random, -18f, 18f), angle, RandomRange(random, -18f, 18f)),
+                    new Vector3(scale * RandomRange(random, 0.12f, 0.2f), scale * RandomRange(random, 0.05f, 0.11f), scale * RandomRange(random, 0.1f, 0.18f)),
+                    new Vector3(RandomRange(random, -16f, 16f), angle, RandomRange(random, -16f, 16f)),
                     Color.Lerp(mainTint, shadowTint, i / (float)Mathf.Max(1, debrisCount - 1)));
             }
         }
@@ -803,104 +949,108 @@ namespace PrivateIsland
 
         private void CreateRoundedBushVariant(Transform parent, float scale, System.Random random)
         {
-            CreateBushStemCluster(parent, scale, random, 5, 0.32f, 0.22f);
+            CreateBushStemCluster(parent, scale, random, 6, 0.26f, 0.18f);
+            CreateBushCanopyRing(parent, scale, random, 6, scale * 0.18f, scale * 0.36f, scale * 0.2f, scale * 0.32f, 0f);
+            CreateBushCanopyRing(parent, scale, random, 4, scale * 0.04f, scale * 0.18f, scale * 0.42f, scale * 0.5f, 28f);
+            CreateBushLeafCluster(parent, new Vector3(0f, scale * 0.52f, 0f), new Vector3(scale * 0.42f, scale * 0.24f, scale * 0.38f), 0f, random);
 
-            int lobeCount = 6;
-            for (int i = 0; i < lobeCount; i++)
-            {
-                float angle = (360f / lobeCount) * i + RandomRange(random, -16f, 16f);
-                float radius = scale * RandomRange(random, 0.18f, 0.34f);
-                float height = scale * RandomRange(random, 0.18f, 0.32f);
-                Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, height, 0f);
-                CreateBushLeafCluster(parent, offset, new Vector3(scale * RandomRange(random, 0.34f, 0.48f), scale * RandomRange(random, 0.2f, 0.3f), scale * RandomRange(random, 0.28f, 0.42f)), angle, random);
-            }
-
-            int broadLeafCount = random.Next(20, 28);
+            int broadLeafCount = random.Next(10, 15);
             for (int i = 0; i < broadLeafCount; i++)
             {
-                float angle = (360f / broadLeafCount) * i + RandomRange(random, -18f, 18f);
-                float radius = scale * RandomRange(random, 0.12f, 0.42f);
-                float height = scale * RandomRange(random, 0.12f, 0.42f);
+                float angle = (360f / broadLeafCount) * i + RandomRange(random, -12f, 12f);
+                float radius = scale * RandomRange(random, 0.22f, 0.4f);
+                float height = scale * RandomRange(random, 0.16f, 0.34f);
                 Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, height, 0f);
-                CreateBushBroadLeaf(parent, offset, angle, scale * RandomRange(random, 0.22f, 0.34f), scale * RandomRange(random, 0.06f, 0.09f), random);
+                CreateBushBroadLeaf(parent, offset, angle, scale * RandomRange(random, 0.18f, 0.24f), scale * RandomRange(random, 0.06f, 0.08f), random);
             }
         }
 
         private void CreateWindsweptBushVariant(Transform parent, float scale, System.Random random)
         {
-            CreateBushStemCluster(parent, scale, random, 4, 0.42f, 0.32f);
+            CreateBushStemCluster(parent, scale, random, 4, 0.32f, 0.24f);
 
-            int sprigCount = 6;
+            for (int i = 0; i < 3; i++)
+            {
+                float angle = -26f + (i * 16f) + RandomRange(random, -6f, 6f);
+                CreateBushLeafCluster(parent, Quaternion.Euler(0f, angle, 0f) * new Vector3(scale * (0.12f + (i * 0.12f)), scale * (0.22f + (i * 0.08f)), 0f), new Vector3(scale * 0.42f, scale * 0.2f, scale * 0.28f), angle, random);
+            }
+
+            int sprigCount = 5;
             for (int i = 0; i < sprigCount; i++)
             {
-                float angle = -42f + (i * 18f) + RandomRange(random, -8f, 8f);
-                CreateBushSprig(parent, angle, scale, random, scale * 0.18f, scale * 0.34f, 4, 6);
+                float angle = -38f + (i * 18f) + RandomRange(random, -6f, 6f);
+                CreateBushSprig(parent, angle, scale, random, scale * 0.18f, scale * 0.34f, 3, 5);
             }
 
-            int padCount = 8;
-            for (int i = 0; i < padCount; i++)
-            {
-                float angle = -56f + (i * 15f) + RandomRange(random, -10f, 10f);
-                float radius = scale * RandomRange(random, 0.18f, 0.38f);
-                float height = scale * RandomRange(random, 0.16f, 0.34f);
-                Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, height, 0f);
-                CreateBushLeafCluster(parent, offset, new Vector3(scale * RandomRange(random, 0.24f, 0.36f), scale * RandomRange(random, 0.12f, 0.2f), scale * RandomRange(random, 0.2f, 0.32f)), angle, random);
-            }
+            CreateBushCanopyRing(parent, scale, random, 5, scale * 0.18f, scale * 0.34f, scale * 0.18f, scale * 0.28f, -34f);
         }
 
         private void CreateDenseBushVariant(Transform parent, float scale, System.Random random)
         {
-            CreateBushStemCluster(parent, scale, random, 6, 0.28f, 0.18f);
+            CreateBushStemCluster(parent, scale, random, 7, 0.24f, 0.16f);
+            CreateBushCanopyRing(parent, scale, random, 8, scale * 0.08f, scale * 0.26f, scale * 0.14f, scale * 0.3f, 0f);
+            CreateBushCanopyRing(parent, scale, random, 6, scale * 0.02f, scale * 0.14f, scale * 0.28f, scale * 0.42f, 22f);
+            CreateBushLeafCluster(parent, new Vector3(0f, scale * 0.5f, 0f), new Vector3(scale * 0.38f, scale * 0.22f, scale * 0.34f), 0f, random);
 
-            int clusterCount = 9;
-            for (int i = 0; i < clusterCount; i++)
-            {
-                float angle = (360f / clusterCount) * i + RandomRange(random, -22f, 22f);
-                float radius = scale * RandomRange(random, 0.08f, 0.3f);
-                float height = scale * RandomRange(random, 0.14f, 0.38f);
-                Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, height, 0f);
-                CreateBushLeafCluster(parent, offset, new Vector3(scale * RandomRange(random, 0.22f, 0.34f), scale * RandomRange(random, 0.16f, 0.26f), scale * RandomRange(random, 0.24f, 0.36f)), angle, random);
-            }
-
-            int leafCount = random.Next(18, 26);
+            int leafCount = random.Next(12, 18);
             for (int i = 0; i < leafCount; i++)
             {
-                float angle = (360f / leafCount) * i + RandomRange(random, -18f, 18f);
-                float radius = scale * RandomRange(random, 0.1f, 0.28f);
-                float height = scale * RandomRange(random, 0.12f, 0.34f);
+                float angle = (360f / leafCount) * i + RandomRange(random, -14f, 14f);
+                float radius = scale * RandomRange(random, 0.16f, 0.3f);
+                float height = scale * RandomRange(random, 0.12f, 0.28f);
                 Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, height, 0f);
-                CreateBushLeaf(parent, offset, angle + RandomRange(random, -18f, 18f), scale * RandomRange(random, 0.16f, 0.24f), RandomRange(random, 0.3f, 1f));
+                CreateBushLeaf(parent, offset, angle + RandomRange(random, -12f, 12f), scale * RandomRange(random, 0.14f, 0.2f), RandomRange(random, 0.35f, 1f));
             }
         }
 
         private void CreateWildBushVariant(Transform parent, float scale, System.Random random)
         {
-            CreateBushStemCluster(parent, scale, random, 5, 0.36f, 0.24f);
+            CreateBushStemCluster(parent, scale, random, 5, 0.3f, 0.2f);
+            CreateBushCanopyRing(parent, scale, random, 5, scale * 0.16f, scale * 0.34f, scale * 0.18f, scale * 0.3f, 12f);
 
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < 4; i++)
             {
-                float angle = (72f * i) + RandomRange(random, -16f, 16f);
-                CreateBushSprig(parent, angle, scale, random, scale * 0.14f, scale * 0.28f, 3, 5);
+                float angle = (90f * i) + RandomRange(random, -12f, 12f);
+                CreateBushSprig(parent, angle, scale, random, scale * 0.16f, scale * 0.3f, 3, 5);
             }
 
-            int broadLeafCount = random.Next(14, 20);
+            int broadLeafCount = random.Next(10, 14);
             for (int i = 0; i < broadLeafCount; i++)
             {
-                float angle = (360f / broadLeafCount) * i + RandomRange(random, -24f, 24f);
-                float radius = scale * RandomRange(random, 0.14f, 0.34f);
-                float height = scale * RandomRange(random, 0.16f, 0.42f);
+                float angle = (360f / broadLeafCount) * i + RandomRange(random, -18f, 18f);
+                float radius = scale * RandomRange(random, 0.2f, 0.38f);
+                float height = scale * RandomRange(random, 0.18f, 0.34f);
                 Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, height, 0f);
-                CreateBushBroadLeaf(parent, offset, angle, scale * RandomRange(random, 0.2f, 0.3f), scale * RandomRange(random, 0.06f, 0.085f), random);
+                CreateBushBroadLeaf(parent, offset, angle, scale * RandomRange(random, 0.18f, 0.24f), scale * RandomRange(random, 0.055f, 0.075f), random);
             }
+        }
 
-            int clusterCount = 5;
+        private void CreateBushCanopyRing(
+            Transform parent,
+            float scale,
+            System.Random random,
+            int clusterCount,
+            float minRadius,
+            float maxRadius,
+            float minHeight,
+            float maxHeight,
+            float angleOffset)
+        {
             for (int i = 0; i < clusterCount; i++)
             {
-                float angle = (360f / clusterCount) * i + RandomRange(random, -26f, 26f);
-                float radius = scale * RandomRange(random, 0.18f, 0.4f);
-                float height = scale * RandomRange(random, 0.14f, 0.28f);
+                float angle = angleOffset + ((360f / clusterCount) * i) + RandomRange(random, -14f, 14f);
+                float radius = RandomRange(random, minRadius, maxRadius);
+                float height = RandomRange(random, minHeight, maxHeight);
                 Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, height, 0f);
-                CreateBushLeafCluster(parent, offset, new Vector3(scale * RandomRange(random, 0.22f, 0.32f), scale * RandomRange(random, 0.12f, 0.2f), scale * RandomRange(random, 0.18f, 0.3f)), angle, random);
+                CreateBushLeafCluster(
+                    parent,
+                    offset,
+                    new Vector3(
+                        scale * RandomRange(random, 0.3f, 0.48f),
+                        scale * RandomRange(random, 0.16f, 0.24f),
+                        scale * RandomRange(random, 0.28f, 0.42f)),
+                    angle,
+                    random);
             }
         }
 
@@ -910,13 +1060,13 @@ namespace PrivateIsland
             {
                 float angle = (360f / stemCount) * i + RandomRange(random, -18f, 18f);
                 float radius = scale * RandomRange(random, 0.02f, spreadScale);
-                Vector3 localPosition = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, scale * 0.08f, 0f);
+                Vector3 localPosition = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, scale * 0.06f, 0f);
 
                 GameObject stem = CreateMeshPart("Stem", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), trunkMaterial, parent);
                 stem.transform.localPosition = localPosition;
-                stem.transform.localRotation = Quaternion.Euler(RandomRange(random, 18f, 34f), angle, RandomRange(random, -18f, 18f));
-                stem.transform.localScale = new Vector3(scale * RandomRange(random, 0.03f, 0.05f), scale * RandomRange(random, stemHeightScale * 0.75f, stemHeightScale), scale * RandomRange(random, 0.03f, 0.05f));
-                ApplyTint(stem, Color.Lerp(new Color(0.31f, 0.22f, 0.13f), new Color(0.42f, 0.31f, 0.17f), i / (float)Mathf.Max(1, stemCount - 1)));
+                stem.transform.localRotation = Quaternion.Euler(RandomRange(random, 16f, 28f), angle, RandomRange(random, -12f, 12f));
+                stem.transform.localScale = new Vector3(scale * RandomRange(random, 0.04f, 0.06f), scale * RandomRange(random, stemHeightScale * 0.72f, stemHeightScale), scale * RandomRange(random, 0.04f, 0.06f));
+                ApplyTint(stem, Color.Lerp(new Color(0.33f, 0.24f, 0.14f), new Color(0.44f, 0.34f, 0.18f), i / (float)Mathf.Max(1, stemCount - 1)));
             }
         }
 
@@ -932,8 +1082,8 @@ namespace PrivateIsland
 
             GameObject stem = CreateMeshPart("SprigStem", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), trunkMaterial, sprigRoot.transform);
             stem.transform.localPosition = new Vector3(0f, scale * 0.12f, 0f);
-            stem.transform.localScale = new Vector3(scale * 0.02f, scale * 0.14f, scale * 0.02f);
-            ApplyTint(stem, new Color(0.3f, 0.22f, 0.13f));
+            stem.transform.localScale = new Vector3(scale * 0.025f, scale * 0.14f, scale * 0.025f);
+            ApplyTint(stem, new Color(0.33f, 0.24f, 0.14f));
 
             int leavesPerSide = random.Next(minLeavesPerSide, maxLeavesPerSide);
             for (int i = 0; i < leavesPerSide; i++)
@@ -953,29 +1103,42 @@ namespace PrivateIsland
             GameObject broadLeaf = CreateMeshPart("BroadLeaf", cachedCapsuleMesh ??= GetPrimitiveMesh(PrimitiveType.Capsule), leavesMaterial, parent);
             broadLeaf.transform.localPosition = localPosition;
             broadLeaf.transform.localRotation = Quaternion.Euler(
-                84f + RandomRange(random, -12f, 12f),
-                yaw + RandomRange(random, -22f, 22f),
-                RandomRange(random, -18f, 18f));
-            broadLeaf.transform.localScale = new Vector3(width, length, width * 1.12f);
-            ApplyTint(broadLeaf, Color.Lerp(new Color(0.18f, 0.38f, 0.16f), new Color(0.35f, 0.62f, 0.28f), (Mathf.Sin(yaw * Mathf.Deg2Rad) + 1f) * 0.5f));
+                78f + RandomRange(random, -10f, 10f),
+                yaw + RandomRange(random, -16f, 16f),
+                RandomRange(random, -12f, 12f));
+            broadLeaf.transform.localScale = new Vector3(width * 0.9f, length, width * 1.18f);
+            ApplyTint(broadLeaf, Color.Lerp(new Color(0.21f, 0.46f, 0.17f), new Color(0.43f, 0.73f, 0.28f), (Mathf.Sin(yaw * Mathf.Deg2Rad) + 1f) * 0.5f));
         }
 
         private void CreateBushLeafCluster(Transform parent, Vector3 localPosition, Vector3 localScale, float yaw, System.Random random)
         {
-            GameObject cluster = CreateMeshPart("LeafCluster", cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere), leavesMaterial, parent);
+            Mesh canopyMesh = random.NextDouble() > 0.3d
+                ? cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere)
+                : cachedCapsuleMesh ??= GetPrimitiveMesh(PrimitiveType.Capsule);
+
+            GameObject cluster = CreateMeshPart("LeafCluster", canopyMesh, leavesMaterial, parent);
             cluster.transform.localPosition = localPosition;
-            cluster.transform.localRotation = Quaternion.Euler(RandomRange(random, -16f, 16f), yaw, RandomRange(random, -20f, 20f));
+            cluster.transform.localRotation = Quaternion.Euler(RandomRange(random, -12f, 12f), yaw, RandomRange(random, -16f, 16f));
             cluster.transform.localScale = localScale;
-            ApplyTint(cluster, Color.Lerp(new Color(0.19f, 0.41f, 0.17f), new Color(0.32f, 0.58f, 0.25f), (Mathf.Cos(yaw * Mathf.Deg2Rad) + 1f) * 0.5f));
+            ApplyTint(cluster, Color.Lerp(new Color(0.2f, 0.44f, 0.17f), new Color(0.38f, 0.7f, 0.26f), (Mathf.Cos(yaw * Mathf.Deg2Rad) + 1f) * 0.5f));
+
+            if (random.NextDouble() > 0.35d)
+            {
+                GameObject highlight = CreateMeshPart("LeafHighlight", cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere), leavesMaterial, cluster.transform);
+                highlight.transform.localPosition = new Vector3(localScale.x * 0.08f, localScale.y * 0.18f, localScale.z * 0.12f);
+                highlight.transform.localRotation = Quaternion.Euler(RandomRange(random, -10f, 10f), yaw, RandomRange(random, -10f, 10f));
+                highlight.transform.localScale = new Vector3(localScale.x * 0.52f, localScale.y * 0.46f, localScale.z * 0.48f);
+                ApplyTint(highlight, new Color(0.49f, 0.8f, 0.31f));
+            }
         }
 
         private void CreateBushLeaf(Transform parent, Vector3 localPosition, float yaw, float length, float tintLerp)
         {
             GameObject leaf = CreateMeshPart("Leaf", cachedCapsuleMesh ??= GetPrimitiveMesh(PrimitiveType.Capsule), leavesMaterial, parent);
             leaf.transform.localPosition = localPosition;
-            leaf.transform.localRotation = Quaternion.Euler(90f, yaw, Mathf.Sign(yaw) * 10f);
-            leaf.transform.localScale = new Vector3(length * 0.16f, length * 0.5f, length * 0.13f);
-            ApplyTint(leaf, Color.Lerp(new Color(0.18f, 0.38f, 0.16f), new Color(0.34f, 0.6f, 0.26f), tintLerp));
+            leaf.transform.localRotation = Quaternion.Euler(86f, yaw, Mathf.Sign(yaw) * 8f);
+            leaf.transform.localScale = new Vector3(length * 0.14f, length * 0.46f, length * 0.12f);
+            ApplyTint(leaf, Color.Lerp(new Color(0.2f, 0.43f, 0.16f), new Color(0.4f, 0.7f, 0.28f), tintLerp));
         }
 
         private void CreatePalmFrond(Transform parent, Vector3 crownCenter, float yaw, float length)
@@ -1208,6 +1371,50 @@ namespace PrivateIsland
             return material;
         }
 
+        private static Material CreateNatureAssetMaterial(string materialName, string textureResourcePath, bool alphaClip, bool doubleSided)
+        {
+            Material material = CreateRuntimeMaterial(materialName);
+            Texture2D albedo = Resources.Load<Texture2D>(textureResourcePath);
+
+            if (albedo != null)
+            {
+                material.SetTexture("_BaseMap", albedo);
+                material.SetTexture("_MainTex", albedo);
+                material.mainTexture = albedo;
+            }
+
+            material.color = Color.white;
+            material.SetColor("_BaseColor", Color.white);
+            material.SetColor("_Color", Color.white);
+            material.SetFloat("_Smoothness", alphaClip ? 0f : 0.05f);
+
+            if (alphaClip)
+            {
+                material.EnableKeyword("_ALPHATEST_ON");
+                material.SetFloat("_AlphaClip", 1f);
+                material.SetFloat("_Cutoff", 0.33f);
+            }
+
+            if (doubleSided)
+            {
+                material.SetFloat("_Cull", 0f);
+            }
+
+            return material;
+        }
+
+        private static void ApplyMaterialTint(Material material, Color tint)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            material.color = tint;
+            material.SetColor("_BaseColor", tint);
+            material.SetColor("_Color", tint);
+        }
+
         private static Mesh CreateRuntimeMesh(string meshName)
         {
             return new Mesh
@@ -1262,9 +1469,94 @@ namespace PrivateIsland
             renderer.SetPropertyBlock(block);
         }
 
+        private static void ApplyMaterialToHierarchy(Transform root, Material material)
+        {
+            if (root == null || material == null)
+            {
+                return;
+            }
+
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                Material[] materials = renderer.sharedMaterials;
+
+                if (materials == null || materials.Length == 0)
+                {
+                    renderer.sharedMaterial = material;
+                }
+                else
+                {
+                    for (int j = 0; j < materials.Length; j++)
+                    {
+                        materials[j] = material;
+                    }
+
+                    renderer.sharedMaterials = materials;
+                }
+
+                renderer.shadowCastingMode = ShadowCastingMode.On;
+                renderer.receiveShadows = true;
+            }
+        }
+
         private static float RandomWave(float value, float offset)
         {
             return Mathf.Sin(value + offset);
+        }
+
+        private static float GetDeterministicRockScale(int index)
+        {
+            float t = Mathf.Repeat((index * 0.7548777f) + 0.21f, 1f);
+            return Mathf.Lerp(1.3f, 2.4f, t);
+        }
+
+        private static bool TryReserveDecorFootprint(
+            Vector3 position,
+            float footprintRadius,
+            List<Vector2> reservedDecorPositions,
+            List<float> reservedDecorRadii)
+        {
+            if (reservedDecorPositions == null || reservedDecorRadii == null)
+            {
+                return true;
+            }
+
+            Vector2 planarPosition = new Vector2(position.x, position.z);
+            for (int i = 0; i < reservedDecorPositions.Count; i++)
+            {
+                float combinedRadius = footprintRadius + reservedDecorRadii[i];
+                if ((planarPosition - reservedDecorPositions[i]).sqrMagnitude < combinedRadius * combinedRadius)
+                {
+                    return false;
+                }
+            }
+
+            reservedDecorPositions.Add(planarPosition);
+            reservedDecorRadii.Add(footprintRadius);
+            return true;
+        }
+
+        private static void ConfigureRockObstacleCollider(GameObject rock)
+        {
+            if (rock == null || !IslandInteractionUtility.TryGetCompositeBounds(rock.transform, out Bounds bounds))
+            {
+                return;
+            }
+
+            BoxCollider collider = GetOrAddComponent<BoxCollider>(rock);
+            collider.isTrigger = false;
+
+            Vector3 localCenter = rock.transform.InverseTransformPoint(bounds.center);
+            Vector3 localSize = rock.transform.InverseTransformVector(bounds.size);
+            localSize = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
+            localSize.x = Mathf.Max(localSize.x, 0.8f);
+            localSize.y = Mathf.Max(localSize.y, 0.8f);
+            localSize.z = Mathf.Max(localSize.z, 0.8f);
+
+            collider.center = localCenter;
+            collider.size = localSize;
         }
 
         private static Mesh GetPrimitiveMesh(PrimitiveType primitiveType)
@@ -1344,6 +1636,8 @@ namespace PrivateIsland
             ReleaseObject(characterShortsMaterial);
             ReleaseObject(characterStrawMaterial);
             ReleaseObject(characterHairMaterial);
+            ReleaseObject(bushAssetMaterial);
+            ReleaseObject(rockAssetMaterial);
 
             terrainMesh = null;
             waterMesh = null;
@@ -1359,6 +1653,8 @@ namespace PrivateIsland
             characterShortsMaterial = null;
             characterStrawMaterial = null;
             characterHairMaterial = null;
+            bushAssetMaterial = null;
+            rockAssetMaterial = null;
         }
 
         private static void ReleaseObject(UnityEngine.Object obj)
