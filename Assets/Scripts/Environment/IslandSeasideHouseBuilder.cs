@@ -17,6 +17,8 @@ namespace PrivateIsland
 
     internal static class IslandSeasideHouseBuilder
     {
+        private const string BedroomWallPortraitResourcePath = "House/BedroomWallPortrait";
+
         private static readonly Color PlasterTint = new Color(0.94f, 0.91f, 0.85f);
         private static readonly Color TrimTint = new Color(0.08f, 0.33f, 0.67f);
         private static readonly Color WoodTint = new Color(0.72f, 0.49f, 0.17f);
@@ -189,6 +191,7 @@ namespace PrivateIsland
             Renderer interiorFloorRenderer = root.Find("InteriorFloor")?.GetComponent<Renderer>();
 
             GameObject bedRoot = BuildBed(root, woodMaterial, floorMaterial, plasterMaterial);
+            GameObject framedPictureRoot = BuildBedroomWallPortrait(root, woodMaterial);
 
             List<Renderer> roomRenderers = new List<Renderer>
             {
@@ -200,6 +203,7 @@ namespace PrivateIsland
             };
 
             roomRenderers.AddRange(bedRoot.GetComponentsInChildren<Renderer>());
+            roomRenderers.AddRange(framedPictureRoot.GetComponentsInChildren<Renderer>());
 
             Color[] lightsOnColors =
             {
@@ -306,6 +310,27 @@ namespace PrivateIsland
             return bedRoot;
         }
 
+        private static GameObject BuildBedroomWallPortrait(Transform root, Material woodMaterial)
+        {
+            GameObject pictureRoot = new GameObject("BedroomWallPortrait");
+            pictureRoot.transform.SetParent(root, false);
+            pictureRoot.transform.localPosition = new Vector3(-5.93f, 2.22f, -1.86f);
+            pictureRoot.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+
+            CreateBox(pictureRoot.transform, "FrameBack", woodMaterial, new Color(0.24f, 0.17f, 0.1f), new Vector3(0f, 0f, -0.01f), new Vector3(2.54f, 1.56f, 0.04f));
+            CreateBox(pictureRoot.transform, "FrameTop", woodMaterial, new Color(0.5f, 0.34f, 0.2f), new Vector3(0f, 0.79f, 0f), new Vector3(2.68f, 0.12f, 0.1f));
+            CreateBox(pictureRoot.transform, "FrameBottom", woodMaterial, new Color(0.5f, 0.34f, 0.2f), new Vector3(0f, -0.79f, 0f), new Vector3(2.68f, 0.12f, 0.1f));
+            CreateBox(pictureRoot.transform, "FrameLeft", woodMaterial, new Color(0.46f, 0.31f, 0.18f), new Vector3(-1.28f, 0f, 0f), new Vector3(0.12f, 1.7f, 0.1f));
+            CreateBox(pictureRoot.transform, "FrameRight", woodMaterial, new Color(0.46f, 0.31f, 0.18f), new Vector3(1.28f, 0f, 0f), new Vector3(0.12f, 1.7f, 0.1f));
+
+            GameObject portraitObject = IslandInteractionUtility.CreateMeshObject("PortraitImage", PrimitiveType.Quad, CreatePortraitMaterial(), pictureRoot.transform);
+            portraitObject.transform.localPosition = new Vector3(0f, 0f, 0.03f);
+            portraitObject.transform.localRotation = Quaternion.identity;
+            portraitObject.transform.localScale = new Vector3(2.34f, 1.32f, 1f);
+
+            return pictureRoot;
+        }
+
         private static void BuildWallSwitchLight(Transform root, Material detailMaterial, Material plasterMaterial, Renderer[] roomRenderers, Color[] lightsOnColors, Color[] lightsOffColors)
         {
             GameObject lightRoot = new GameObject("InteriorLight");
@@ -342,6 +367,37 @@ namespace PrivateIsland
                 true,
                 2.3f,
                 1.25f);
+        }
+
+        private static Material CreatePortraitMaterial()
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            shader ??= Shader.Find("Standard");
+
+            Material material = new Material(shader)
+            {
+                name = "Bedroom Wall Portrait Material",
+                hideFlags = HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild
+            };
+
+            Texture2D portraitTexture = Resources.Load<Texture2D>(BedroomWallPortraitResourcePath);
+            if (portraitTexture != null)
+            {
+                portraitTexture.filterMode = FilterMode.Trilinear;
+                portraitTexture.anisoLevel = 8;
+                portraitTexture.wrapMode = TextureWrapMode.Clamp;
+
+                material.mainTexture = portraitTexture;
+                material.SetTexture("_BaseMap", portraitTexture);
+                material.SetTexture("_MainTex", portraitTexture);
+            }
+
+            material.SetColor("_BaseColor", Color.white);
+            material.SetColor("_Color", Color.white);
+            material.SetFloat("_Smoothness", 0.02f);
+            material.SetFloat("_Metallic", 0f);
+            material.SetFloat("_Cull", 0f);
+            return material;
         }
 
         private static Transform CreateAnchor(Transform parent, string name, Vector3 localPosition, Quaternion localRotation)
