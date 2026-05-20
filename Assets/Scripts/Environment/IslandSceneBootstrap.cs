@@ -179,16 +179,16 @@ namespace PrivateIsland
         {
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = new Color(0.63f, 0.78f, 0.86f);
-            RenderSettings.fogStartDistance = 90f;
-            RenderSettings.fogEndDistance = 360f;
+            RenderSettings.fogColor = new Color(0.68f, 0.82f, 0.88f);
+            RenderSettings.fogStartDistance = 110f;
+            RenderSettings.fogEndDistance = 410f;
             RenderSettings.haloStrength = 0f;
             RenderSettings.flareStrength = 0f;
 
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.56f, 0.72f, 0.82f);
-            RenderSettings.ambientEquatorColor = new Color(0.43f, 0.54f, 0.5f);
-            RenderSettings.ambientGroundColor = new Color(0.17f, 0.18f, 0.15f);
+            RenderSettings.ambientSkyColor = new Color(0.62f, 0.78f, 0.87f);
+            RenderSettings.ambientEquatorColor = new Color(0.46f, 0.61f, 0.58f);
+            RenderSettings.ambientGroundColor = new Color(0.19f, 0.2f, 0.16f);
 
             Material skybox = RenderSettings.skybox;
             if (skybox != null)
@@ -220,12 +220,12 @@ namespace PrivateIsland
 
                 if (skybox.HasProperty("_Exposure"))
                 {
-                    skybox.SetFloat("_Exposure", 1.08f);
+                    skybox.SetFloat("_Exposure", 1.14f);
                 }
 
                 if (skybox.HasProperty("_AtmosphereThickness"))
                 {
-                    skybox.SetFloat("_AtmosphereThickness", 0.78f);
+                    skybox.SetFloat("_AtmosphereThickness", 0.7f);
                 }
             }
         }
@@ -253,9 +253,9 @@ namespace PrivateIsland
             }
 
             RenderSettings.sun = sun;
-            sun.transform.rotation = Quaternion.Euler(38f, -32f, 0f);
-            sun.color = new Color(1f, 0.84f, 0.52f);
-            sun.intensity = 1.45f;
+            sun.transform.rotation = Quaternion.Euler(34f, -28f, 0f);
+            sun.color = new Color(1f, 0.88f, 0.58f);
+            sun.intensity = 1.58f;
             sun.shadows = LightShadows.Soft;
             sun.shadowStrength = 0.92f;
         }
@@ -283,11 +283,11 @@ namespace PrivateIsland
             colorAdjustments.saturation.value = 6f;
 
             Bloom bloom = GetOrAddVolumeComponent<Bloom>(profile);
-            bloom.active = false;
+            bloom.active = true;
             bloom.threshold.overrideState = true;
-            bloom.threshold.value = 10f;
+            bloom.threshold.value = 1.1f;
             bloom.intensity.overrideState = true;
-            bloom.intensity.value = 0f;
+            bloom.intensity.value = 0.24f;
 
             Vignette vignette = GetOrAddVolumeComponent<Vignette>(profile);
             vignette.intensity.overrideState = true;
@@ -372,9 +372,18 @@ namespace PrivateIsland
             waterRoot.localPosition = new Vector3(0f, seaLevel, 0f);
             filter.sharedMesh = waterMesh;
 
-            waterMaterial.SetColor("_BaseColor", new Color(0.12f, 0.47f, 0.61f, 1f));
-            waterMaterial.SetFloat("_Smoothness", 0.9f);
+            waterMaterial.SetColor("_BaseColor", new Color(0.14f, 0.56f, 0.68f, 0.72f));
+            waterMaterial.SetColor("_Color", new Color(0.14f, 0.56f, 0.68f, 0.72f));
+            waterMaterial.SetColor("_EmissionColor", new Color(0.08f, 0.28f, 0.33f) * 0.22f);
+            waterMaterial.EnableKeyword("_EMISSION");
+            waterMaterial.SetFloat("_Smoothness", 0.96f);
             waterMaterial.SetFloat("_Metallic", 0.02f);
+            waterMaterial.SetFloat("_Surface", 1f);
+            waterMaterial.SetFloat("_Blend", 0f);
+            waterMaterial.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            waterMaterial.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            waterMaterial.SetFloat("_ZWrite", 0f);
+            waterMaterial.renderQueue = (int)RenderQueue.Transparent;
             renderer.sharedMaterial = waterMaterial;
         }
 
@@ -443,6 +452,8 @@ namespace PrivateIsland
 
             BuildDock(propsRoot, dockDirection);
             BuildCampfire(propsRoot, campfirePosition, dockDirection);
+            BuildHouseOutdoorLivingSet(propsRoot, housePosition, houseDirection);
+            BuildDockDetailSet(propsRoot, dockDirection);
             BuildFixedRockSet(propsRoot, characterSpawn, houseResult.Center, houseResult.ClearanceRadius, reservedDecorPositions, reservedDecorRadii);
 
             int placedTrees = 0;
@@ -615,6 +626,175 @@ namespace PrivateIsland
             GameObject pillar = CreateMeshPart("Pillar", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), dockMaterial, parent);
             pillar.transform.localPosition = localPosition;
             pillar.transform.localScale = new Vector3(0.18f, 1.6f, 0.18f);
+        }
+
+        private void BuildHouseOutdoorLivingSet(Transform parent, Vector3 houseCenter, Vector2 houseDirection)
+        {
+            GameObject decorRoot = new GameObject("HouseOutdoorLiving");
+            decorRoot.transform.SetParent(parent, false);
+
+            Vector3 forward = houseDirection.sqrMagnitude > 0.0001f
+                ? new Vector3(houseDirection.x, 0f, houseDirection.y).normalized
+                : new Vector3(0.91f, 0f, -0.42f).normalized;
+            Vector3 right = new Vector3(forward.z, 0f, -forward.x);
+
+            Vector3 loungeCenter = houseCenter + (forward * 8.45f);
+            CreateOutdoorChair(decorRoot.transform, loungeCenter + (right * -2.2f), Quaternion.LookRotation(-forward + (right * 0.12f), Vector3.up), new Color(0.16f, 0.49f, 0.72f));
+            CreateOutdoorChair(decorRoot.transform, loungeCenter + (right * 2.2f), Quaternion.LookRotation(-forward - (right * 0.12f), Vector3.up), new Color(0.82f, 0.66f, 0.3f));
+            CreateOutdoorSideTable(decorRoot.transform, loungeCenter + (forward * -0.22f));
+            CreateOutdoorUmbrella(decorRoot.transform, loungeCenter + (forward * 0.34f));
+
+            CreateOutdoorPlanter(decorRoot.transform, houseCenter + (forward * 6.2f) + (right * -4.45f), 1.1f);
+            CreateOutdoorPlanter(decorRoot.transform, houseCenter + (forward * 6.2f) + (right * 4.45f), 1.05f);
+        }
+
+        private void BuildDockDetailSet(Transform parent, Vector2 dockDirection)
+        {
+            GameObject detailRoot = new GameObject("DockDetails");
+            detailRoot.transform.SetParent(parent, false);
+
+            Vector2 normalizedDirection = dockDirection.sqrMagnitude > 0.0001f ? dockDirection.normalized : new Vector2(0.42f, 0.91f).normalized;
+            Vector2 side2D = new Vector2(-normalizedDirection.y, normalizedDirection.x);
+            Vector3 forward = new Vector3(normalizedDirection.x, 0f, normalizedDirection.y);
+            Vector3 side = new Vector3(side2D.x, 0f, side2D.y);
+
+            float shorelineRadius = islandSize * 0.41f;
+            Vector3 shoreline = new Vector3(normalizedDirection.x, 0f, normalizedDirection.y) * shorelineRadius;
+            shoreline.y = IslandMeshBuilder.SampleHeight(shoreline.x, shoreline.z, islandSize, peakHeight);
+
+            CreateDockCrateStack(detailRoot.transform, shoreline - (forward * 1.18f) + (side * 2.2f));
+            CreateDockCrateStack(detailRoot.transform, shoreline - (forward * 0.82f) - (side * 2.36f));
+            CreateDockLanternPost(detailRoot.transform, shoreline + (side * 2.02f) + new Vector3(0f, 0.04f, 0f));
+            CreateDockLanternPost(detailRoot.transform, shoreline - (side * 2.02f) + new Vector3(0f, 0.04f, 0f));
+        }
+
+        private void CreateOutdoorChair(Transform parent, Vector3 worldPosition, Quaternion worldRotation, Color cushionTint)
+        {
+            GameObject chair = new GameObject("OutdoorChair");
+            chair.transform.SetParent(parent, false);
+            chair.transform.position = worldPosition;
+            chair.transform.rotation = worldRotation;
+
+            GameObject seat = CreateMeshPart("Seat", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), houseWoodMaterial, chair.transform);
+            seat.transform.localPosition = new Vector3(0f, 0.44f, 0f);
+            seat.transform.localScale = new Vector3(1.08f, 0.12f, 1.28f);
+
+            GameObject back = CreateMeshPart("Back", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), houseWoodMaterial, chair.transform);
+            back.transform.localPosition = new Vector3(0f, 0.92f, -0.52f);
+            back.transform.localRotation = Quaternion.Euler(-12f, 0f, 0f);
+            back.transform.localScale = new Vector3(1.08f, 0.76f, 0.12f);
+
+            GameObject cushion = CreateMeshPart("Cushion", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), houseAccentMaterial, chair.transform);
+            cushion.transform.localPosition = new Vector3(0f, 0.53f, 0.06f);
+            cushion.transform.localScale = new Vector3(0.94f, 0.08f, 1.02f);
+            ApplyTint(cushion, cushionTint);
+
+            for (int i = 0; i < 4; i++)
+            {
+                float x = i < 2 ? -0.42f : 0.42f;
+                float z = (i % 2 == 0) ? -0.46f : 0.46f;
+                GameObject leg = CreateMeshPart($"Leg_{i}", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), houseDetailMaterial, chair.transform);
+                leg.transform.localPosition = new Vector3(x, 0.22f, z);
+                leg.transform.localScale = new Vector3(0.05f, 0.24f, 0.05f);
+            }
+        }
+
+        private void CreateOutdoorSideTable(Transform parent, Vector3 worldPosition)
+        {
+            GameObject table = new GameObject("OutdoorSideTable");
+            table.transform.SetParent(parent, false);
+            table.transform.position = worldPosition;
+
+            GameObject top = CreateMeshPart("Top", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), houseWoodMaterial, table.transform);
+            top.transform.localPosition = new Vector3(0f, 0.48f, 0f);
+            top.transform.localScale = new Vector3(0.54f, 0.06f, 0.54f);
+
+            GameObject stem = CreateMeshPart("Stem", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), houseDetailMaterial, table.transform);
+            stem.transform.localPosition = new Vector3(0f, 0.28f, 0f);
+            stem.transform.localScale = new Vector3(0.08f, 0.24f, 0.08f);
+
+            GameObject shellBowl = CreateMeshPart("ShellBowl", cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere), houseFloorMaterial, table.transform);
+            shellBowl.transform.localPosition = new Vector3(0f, 0.62f, 0f);
+            shellBowl.transform.localScale = new Vector3(0.24f, 0.08f, 0.24f);
+        }
+
+        private void CreateOutdoorUmbrella(Transform parent, Vector3 worldPosition)
+        {
+            GameObject umbrella = new GameObject("OutdoorUmbrella");
+            umbrella.transform.SetParent(parent, false);
+            umbrella.transform.position = worldPosition;
+
+            GameObject pole = CreateMeshPart("Pole", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), houseDetailMaterial, umbrella.transform);
+            pole.transform.localPosition = new Vector3(0f, 1.84f, 0f);
+            pole.transform.localScale = new Vector3(0.08f, 1.88f, 0.08f);
+
+            GameObject canopy = CreateMeshPart("Canopy", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), houseAccentMaterial, umbrella.transform);
+            canopy.transform.localPosition = new Vector3(0f, 3.58f, 0f);
+            canopy.transform.localScale = new Vector3(2.18f, 0.08f, 2.18f);
+            ApplyTint(canopy, new Color(0.16f, 0.49f, 0.72f));
+
+            GameObject cap = CreateMeshPart("CanopyCap", cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere), houseAccentMaterial, umbrella.transform);
+            cap.transform.localPosition = new Vector3(0f, 3.92f, 0f);
+            cap.transform.localScale = new Vector3(0.24f, 0.16f, 0.24f);
+            ApplyTint(cap, new Color(0.84f, 0.72f, 0.3f));
+        }
+
+        private void CreateOutdoorPlanter(Transform parent, Vector3 worldPosition, float scale)
+        {
+            GameObject planter = new GameObject("OutdoorPlanter");
+            planter.transform.SetParent(parent, false);
+            planter.transform.position = worldPosition;
+            planter.transform.localScale = Vector3.one * scale;
+
+            GameObject pot = CreateMeshPart("Pot", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), houseWoodMaterial, planter.transform);
+            pot.transform.localPosition = new Vector3(0f, 0.38f, 0f);
+            pot.transform.localScale = new Vector3(0.54f, 0.38f, 0.54f);
+            ApplyTint(pot, new Color(0.76f, 0.48f, 0.3f));
+
+            for (int i = 0; i < 5; i++)
+            {
+                float angle = i * 72f;
+                GameObject leaf = CreateMeshPart($"Leaf_{i}", cachedCapsuleMesh ??= GetPrimitiveMesh(PrimitiveType.Capsule), leavesMaterial, planter.transform);
+                leaf.transform.localPosition = new Vector3(0f, 0.82f, 0f);
+                leaf.transform.localRotation = Quaternion.Euler(24f + (i * 5f), angle, 16f);
+                leaf.transform.localScale = new Vector3(0.14f, 0.52f, 0.14f);
+                ApplyTint(leaf, Color.Lerp(new Color(0.24f, 0.5f, 0.22f), new Color(0.38f, 0.7f, 0.28f), i / 4f));
+            }
+        }
+
+        private void CreateDockCrateStack(Transform parent, Vector3 worldPosition)
+        {
+            GameObject stack = new GameObject("DockCrateStack");
+            stack.transform.SetParent(parent, false);
+            stack.transform.position = worldPosition;
+
+            GameObject crateA = CreateMeshPart("CrateA", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), dockMaterial, stack.transform);
+            crateA.transform.localPosition = new Vector3(0f, 0.32f, 0f);
+            crateA.transform.localScale = new Vector3(0.84f, 0.64f, 0.84f);
+
+            GameObject crateB = CreateMeshPart("CrateB", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), dockMaterial, stack.transform);
+            crateB.transform.localPosition = new Vector3(0.42f, 0.8f, -0.1f);
+            crateB.transform.localRotation = Quaternion.Euler(0f, 18f, 0f);
+            crateB.transform.localScale = new Vector3(0.62f, 0.46f, 0.62f);
+
+            ApplyTint(crateA, new Color(0.5f, 0.36f, 0.22f));
+            ApplyTint(crateB, new Color(0.57f, 0.4f, 0.24f));
+        }
+
+        private void CreateDockLanternPost(Transform parent, Vector3 worldPosition)
+        {
+            GameObject post = new GameObject("DockLanternPost");
+            post.transform.SetParent(parent, false);
+            post.transform.position = worldPosition;
+
+            GameObject stem = CreateMeshPart("Stem", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), dockMaterial, post.transform);
+            stem.transform.localPosition = new Vector3(0f, 1.12f, 0f);
+            stem.transform.localScale = new Vector3(0.12f, 1.14f, 0.12f);
+
+            GameObject lantern = CreateMeshPart("Lantern", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), houseFloorMaterial, post.transform);
+            lantern.transform.localPosition = new Vector3(0f, 2.34f, 0f);
+            lantern.transform.localScale = new Vector3(0.26f, 0.34f, 0.26f);
+            ApplyTint(lantern, new Color(0.98f, 0.88f, 0.66f));
         }
 
         private void CreateRock(Transform parent, Vector3 position, float scale, float yaw, System.Random random)

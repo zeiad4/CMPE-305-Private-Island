@@ -191,7 +191,10 @@ namespace PrivateIsland
             Renderer interiorFloorRenderer = root.Find("InteriorFloor")?.GetComponent<Renderer>();
 
             GameObject bedRoot = BuildBed(root, woodMaterial, floorMaterial, plasterMaterial);
-            GameObject framedPictureRoot = BuildBedroomWallPortrait(root, woodMaterial);
+            GameObject rugRoot = BuildBedroomRug(root, accentMaterial);
+            GameObject bedsideRoot = BuildBedsideDecor(root, woodMaterial, plasterMaterial, detailMaterial);
+            GameObject galleryRoot = BuildBedroomWallPortrait(root, woodMaterial, plasterMaterial, detailMaterial);
+            GameObject dresserRoot = BuildBedroomDresser(root, woodMaterial, plasterMaterial, detailMaterial);
 
             List<Renderer> roomRenderers = new List<Renderer>
             {
@@ -203,7 +206,10 @@ namespace PrivateIsland
             };
 
             roomRenderers.AddRange(bedRoot.GetComponentsInChildren<Renderer>());
-            roomRenderers.AddRange(framedPictureRoot.GetComponentsInChildren<Renderer>());
+            roomRenderers.AddRange(rugRoot.GetComponentsInChildren<Renderer>());
+            roomRenderers.AddRange(bedsideRoot.GetComponentsInChildren<Renderer>());
+            roomRenderers.AddRange(galleryRoot.GetComponentsInChildren<Renderer>());
+            roomRenderers.AddRange(dresserRoot.GetComponentsInChildren<Renderer>());
 
             Color[] lightsOnColors =
             {
@@ -224,6 +230,7 @@ namespace PrivateIsland
             };
 
             BuildWallSwitchLight(root, detailMaterial, plasterMaterial, roomRenderers.ToArray(), lightsOnColors, lightsOffColors);
+            BuildInteriorCeilingLightFixture(root, detailMaterial, plasterMaterial);
         }
 
         private static void BuildDoorInteractions(Transform root)
@@ -310,25 +317,128 @@ namespace PrivateIsland
             return bedRoot;
         }
 
-        private static GameObject BuildBedroomWallPortrait(Transform root, Material woodMaterial)
+        private static GameObject BuildBedroomRug(Transform root, Material accentMaterial)
         {
-            GameObject pictureRoot = new GameObject("BedroomWallPortrait");
-            pictureRoot.transform.SetParent(root, false);
-            pictureRoot.transform.localPosition = new Vector3(-5.93f, 2.22f, -1.86f);
-            pictureRoot.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            GameObject rugRoot = new GameObject("BedroomRug");
+            rugRoot.transform.SetParent(root, false);
+            rugRoot.transform.localPosition = new Vector3(3.22f, 0.04f, -3.08f);
 
-            CreateBox(pictureRoot.transform, "FrameBack", woodMaterial, new Color(0.24f, 0.17f, 0.1f), new Vector3(0f, 0f, -0.01f), new Vector3(2.54f, 1.56f, 0.04f));
-            CreateBox(pictureRoot.transform, "FrameTop", woodMaterial, new Color(0.5f, 0.34f, 0.2f), new Vector3(0f, 0.79f, 0f), new Vector3(2.68f, 0.12f, 0.1f));
-            CreateBox(pictureRoot.transform, "FrameBottom", woodMaterial, new Color(0.5f, 0.34f, 0.2f), new Vector3(0f, -0.79f, 0f), new Vector3(2.68f, 0.12f, 0.1f));
-            CreateBox(pictureRoot.transform, "FrameLeft", woodMaterial, new Color(0.46f, 0.31f, 0.18f), new Vector3(-1.28f, 0f, 0f), new Vector3(0.12f, 1.7f, 0.1f));
-            CreateBox(pictureRoot.transform, "FrameRight", woodMaterial, new Color(0.46f, 0.31f, 0.18f), new Vector3(1.28f, 0f, 0f), new Vector3(0.12f, 1.7f, 0.1f));
+            CreateBox(rugRoot.transform, "RugBase", accentMaterial, new Color(0.84f, 0.72f, 0.34f), Vector3.zero, new Vector3(4.8f, 0.025f, 3.12f));
+            CreateBox(rugRoot.transform, "RugStripeA", accentMaterial, new Color(0.14f, 0.44f, 0.7f), new Vector3(0f, 0.01f, -0.74f), new Vector3(4.48f, 0.01f, 0.22f));
+            CreateBox(rugRoot.transform, "RugStripeB", accentMaterial, new Color(0.14f, 0.44f, 0.7f), new Vector3(0f, 0.01f, 0f), new Vector3(4.48f, 0.01f, 0.22f));
+            CreateBox(rugRoot.transform, "RugStripeC", accentMaterial, new Color(0.14f, 0.44f, 0.7f), new Vector3(0f, 0.01f, 0.74f), new Vector3(4.48f, 0.01f, 0.22f));
+            return rugRoot;
+        }
 
-            GameObject portraitObject = IslandInteractionUtility.CreateMeshObject("PortraitImage", PrimitiveType.Quad, CreatePortraitMaterial(), pictureRoot.transform);
-            portraitObject.transform.localPosition = new Vector3(0f, 0f, 0.03f);
+        private static GameObject BuildBedsideDecor(Transform root, Material woodMaterial, Material plasterMaterial, Material detailMaterial)
+        {
+            GameObject decorRoot = new GameObject("BedsideDecor");
+            decorRoot.transform.SetParent(root, false);
+
+            GameObject nightstand = new GameObject("Nightstand");
+            nightstand.transform.SetParent(decorRoot.transform, false);
+            nightstand.transform.localPosition = new Vector3(5.2f, 0f, -1.86f);
+
+            CreateBox(nightstand.transform, "Body", woodMaterial, new Color(0.52f, 0.34f, 0.2f), new Vector3(0f, 0.34f, 0f), new Vector3(0.92f, 0.68f, 0.74f));
+            CreateBox(nightstand.transform, "Shelf", woodMaterial, new Color(0.46f, 0.3f, 0.18f), new Vector3(0f, 0.15f, 0f), new Vector3(0.8f, 0.06f, 0.64f));
+            CreateBox(nightstand.transform, "Handle", detailMaterial, MetalTint, new Vector3(0f, 0.38f, 0.39f), new Vector3(0.22f, 0.06f, 0.04f));
+
+            GameObject lampBase = CreateBox(nightstand.transform, "LampBase", detailMaterial, MetalTint, new Vector3(-0.18f, 0.74f, -0.08f), new Vector3(0.14f, 0.08f, 0.14f));
+            CreateBox(nightstand.transform, "LampStem", detailMaterial, MetalTint, new Vector3(-0.18f, 1f, -0.08f), new Vector3(0.05f, 0.42f, 0.05f));
+            CreateBox(nightstand.transform, "LampShade", plasterMaterial, new Color(0.96f, 0.88f, 0.68f), new Vector3(-0.18f, 1.26f, -0.08f), new Vector3(0.34f, 0.28f, 0.34f));
+            CreateBox(nightstand.transform, "BookStackA", woodMaterial, new Color(0.16f, 0.48f, 0.68f), new Vector3(0.18f, 0.76f, 0.04f), new Vector3(0.22f, 0.06f, 0.18f));
+            CreateBox(nightstand.transform, "BookStackB", woodMaterial, new Color(0.8f, 0.66f, 0.3f), new Vector3(0.18f, 0.83f, 0.04f), new Vector3(0.22f, 0.05f, 0.18f));
+
+            GameObject trunkBench = new GameObject("FootBench");
+            trunkBench.transform.SetParent(decorRoot.transform, false);
+            trunkBench.transform.localPosition = new Vector3(0.96f, 0f, -3.26f);
+            CreateBox(trunkBench.transform, "BenchBody", woodMaterial, new Color(0.54f, 0.36f, 0.2f), new Vector3(0f, 0.28f, 0f), new Vector3(1.32f, 0.56f, 1.06f));
+            CreateBox(trunkBench.transform, "BenchLid", detailMaterial, new Color(0.12f, 0.42f, 0.7f), new Vector3(0f, 0.62f, 0f), new Vector3(1.38f, 0.12f, 1.12f));
+            CreateBox(trunkBench.transform, "Latch", detailMaterial, MetalTint, new Vector3(0f, 0.28f, 0.56f), new Vector3(0.14f, 0.2f, 0.04f));
+
+            return decorRoot;
+        }
+
+        private static GameObject BuildBedroomWallPortrait(Transform root, Material woodMaterial, Material plasterMaterial, Material detailMaterial)
+        {
+            GameObject galleryRoot = new GameObject("BedroomPictureWall");
+            galleryRoot.transform.SetParent(root, false);
+            galleryRoot.transform.localPosition = Vector3.zero;
+
+            CreateFramedPortrait(galleryRoot.transform, "PortraitMain", woodMaterial, new Vector3(-5.93f, 2.26f, -1.62f), Quaternion.Euler(0f, 90f, 0f), new Vector2(2.86f, 1.68f));
+            CreateFramedPortrait(galleryRoot.transform, "PortraitUpper", woodMaterial, new Vector3(-5.93f, 3.18f, -3.18f), Quaternion.Euler(0f, 90f, 0f), new Vector2(1.58f, 1f));
+            CreateFramedPortrait(galleryRoot.transform, "PortraitLower", woodMaterial, new Vector3(-5.93f, 1.36f, -3.06f), Quaternion.Euler(0f, 90f, 0f), new Vector2(1.42f, 0.92f));
+            CreateFramedPortrait(galleryRoot.transform, "PortraitHintCandidate", woodMaterial, new Vector3(-5.93f, 2.18f, 0.3f), Quaternion.Euler(0f, 90f, 0f), new Vector2(1.84f, 1.16f));
+
+            CreateBox(galleryRoot.transform, "GalleryWallTrim", detailMaterial, new Color(0.88f, 0.84f, 0.78f), new Vector3(-5.94f, 0.92f, -1.4f), new Vector3(0.06f, 0.1f, 5.9f));
+            CreateBox(galleryRoot.transform, "GalleryWallSconce", plasterMaterial, new Color(0.96f, 0.9f, 0.76f), new Vector3(-5.9f, 3.82f, -1.32f), new Vector3(0.1f, 0.26f, 0.34f));
+
+            return galleryRoot;
+        }
+
+        private static GameObject BuildBedroomDresser(Transform root, Material woodMaterial, Material plasterMaterial, Material detailMaterial)
+        {
+            GameObject dresserRoot = new GameObject("BedroomDresser");
+            dresserRoot.transform.SetParent(root, false);
+            dresserRoot.transform.localPosition = new Vector3(-5.22f, 0f, -1.5f);
+            dresserRoot.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+
+            CreateBox(dresserRoot.transform, "Body", woodMaterial, new Color(0.54f, 0.35f, 0.2f), new Vector3(0f, 0.7f, 0f), new Vector3(2.62f, 1.4f, 0.72f));
+            CreateBox(dresserRoot.transform, "Top", woodMaterial, new Color(0.61f, 0.42f, 0.24f), new Vector3(0f, 1.46f, 0f), new Vector3(2.76f, 0.12f, 0.84f));
+
+            for (int row = 0; row < 3; row++)
+            {
+                float y = 1.1f - (row * 0.36f);
+                CreateBox(dresserRoot.transform, $"DrawerLeft_{row}", woodMaterial, new Color(0.48f, 0.31f, 0.18f), new Vector3(-0.62f, y, 0.39f), new Vector3(0.92f, 0.24f, 0.05f));
+                CreateBox(dresserRoot.transform, $"DrawerRight_{row}", woodMaterial, new Color(0.48f, 0.31f, 0.18f), new Vector3(0.62f, y, 0.39f), new Vector3(0.92f, 0.24f, 0.05f));
+                CreateBox(dresserRoot.transform, $"HandleLeft_{row}", detailMaterial, MetalTint, new Vector3(-0.62f, y, 0.43f), new Vector3(0.16f, 0.04f, 0.03f));
+                CreateBox(dresserRoot.transform, $"HandleRight_{row}", detailMaterial, MetalTint, new Vector3(0.62f, y, 0.43f), new Vector3(0.16f, 0.04f, 0.03f));
+            }
+
+            CreateBox(dresserRoot.transform, "Vase", plasterMaterial, new Color(0.84f, 0.86f, 0.9f), new Vector3(-0.78f, 1.76f, -0.06f), new Vector3(0.24f, 0.42f, 0.24f));
+            CreateBox(dresserRoot.transform, "PlantStem", detailMaterial, new Color(0.25f, 0.55f, 0.27f), new Vector3(-0.78f, 2.04f, -0.06f), new Vector3(0.06f, 0.22f, 0.06f));
+            CreateBox(dresserRoot.transform, "PlantLeafA", detailMaterial, new Color(0.31f, 0.68f, 0.3f), new Vector3(-0.86f, 2.18f, -0.06f), new Vector3(0.22f, 0.08f, 0.08f), Quaternion.Euler(0f, 0f, 28f));
+            CreateBox(dresserRoot.transform, "PlantLeafB", detailMaterial, new Color(0.31f, 0.68f, 0.3f), new Vector3(-0.7f, 2.16f, -0.06f), new Vector3(0.22f, 0.08f, 0.08f), Quaternion.Euler(0f, 0f, -24f));
+            CreateBox(dresserRoot.transform, "BookStackA", woodMaterial, new Color(0.15f, 0.44f, 0.68f), new Vector3(0.22f, 1.66f, -0.08f), new Vector3(0.36f, 0.08f, 0.28f));
+            CreateBox(dresserRoot.transform, "BookStackB", woodMaterial, new Color(0.84f, 0.72f, 0.28f), new Vector3(0.22f, 1.76f, -0.08f), new Vector3(0.36f, 0.07f, 0.28f));
+            CreateBox(dresserRoot.transform, "ShellBowl", plasterMaterial, new Color(0.93f, 0.88f, 0.8f), new Vector3(0.96f, 1.67f, -0.04f), new Vector3(0.32f, 0.08f, 0.24f));
+
+            return dresserRoot;
+        }
+
+        private static void CreateFramedPortrait(Transform parent, string name, Material woodMaterial, Vector3 localPosition, Quaternion localRotation, Vector2 artSize)
+        {
+            GameObject frameRoot = new GameObject(name);
+            frameRoot.transform.SetParent(parent, false);
+            frameRoot.transform.localPosition = localPosition;
+            frameRoot.transform.localRotation = localRotation;
+
+            float outerWidth = artSize.x + 0.26f;
+            float outerHeight = artSize.y + 0.26f;
+
+            CreateBox(frameRoot.transform, "FrameBack", woodMaterial, new Color(0.24f, 0.17f, 0.1f), new Vector3(0f, 0f, -0.012f), new Vector3(outerWidth, outerHeight, 0.04f));
+            CreateBox(frameRoot.transform, "FrameTop", woodMaterial, new Color(0.52f, 0.35f, 0.2f), new Vector3(0f, (outerHeight * 0.5f) - 0.06f, 0f), new Vector3(outerWidth + 0.08f, 0.12f, 0.1f));
+            CreateBox(frameRoot.transform, "FrameBottom", woodMaterial, new Color(0.52f, 0.35f, 0.2f), new Vector3(0f, (-outerHeight * 0.5f) + 0.06f, 0f), new Vector3(outerWidth + 0.08f, 0.12f, 0.1f));
+            CreateBox(frameRoot.transform, "FrameLeft", woodMaterial, new Color(0.46f, 0.31f, 0.18f), new Vector3((-outerWidth * 0.5f) + 0.06f, 0f, 0f), new Vector3(0.12f, outerHeight + 0.08f, 0.1f));
+            CreateBox(frameRoot.transform, "FrameRight", woodMaterial, new Color(0.46f, 0.31f, 0.18f), new Vector3((outerWidth * 0.5f) - 0.06f, 0f, 0f), new Vector3(0.12f, outerHeight + 0.08f, 0.1f));
+
+            GameObject portraitObject = IslandInteractionUtility.CreateMeshObject("PortraitImage", PrimitiveType.Quad, CreatePortraitMaterial(), frameRoot.transform);
+            portraitObject.transform.localPosition = new Vector3(0f, 0f, 0.032f);
             portraitObject.transform.localRotation = Quaternion.identity;
-            portraitObject.transform.localScale = new Vector3(2.34f, 1.32f, 1f);
+            portraitObject.transform.localScale = new Vector3(artSize.x, artSize.y, 1f);
+        }
 
-            return pictureRoot;
+        private static void BuildInteriorCeilingLightFixture(Transform root, Material detailMaterial, Material plasterMaterial)
+        {
+            GameObject fixtureRoot = new GameObject("InteriorLightFixture");
+            fixtureRoot.transform.SetParent(root, false);
+            fixtureRoot.transform.localPosition = new Vector3(0f, 4.06f, -1.22f);
+
+            CreateBox(fixtureRoot.transform, "FixtureStem", detailMaterial, MetalTint, new Vector3(0f, 0.18f, 0f), new Vector3(0.06f, 0.32f, 0.06f));
+            CreateBox(fixtureRoot.transform, "FixtureBar", detailMaterial, MetalTint, new Vector3(0f, -0.02f, 0f), new Vector3(0.64f, 0.04f, 0.14f));
+            CreateBox(fixtureRoot.transform, "ShadeLeft", plasterMaterial, new Color(0.96f, 0.88f, 0.72f), new Vector3(-0.22f, -0.18f, 0f), new Vector3(0.26f, 0.22f, 0.26f));
+            CreateBox(fixtureRoot.transform, "ShadeCenter", plasterMaterial, new Color(0.96f, 0.88f, 0.72f), new Vector3(0f, -0.24f, 0f), new Vector3(0.3f, 0.24f, 0.3f));
+            CreateBox(fixtureRoot.transform, "ShadeRight", plasterMaterial, new Color(0.96f, 0.88f, 0.72f), new Vector3(0.22f, -0.18f, 0f), new Vector3(0.26f, 0.22f, 0.26f));
         }
 
         private static void BuildWallSwitchLight(Transform root, Material detailMaterial, Material plasterMaterial, Renderer[] roomRenderers, Color[] lightsOnColors, Color[] lightsOffColors)
