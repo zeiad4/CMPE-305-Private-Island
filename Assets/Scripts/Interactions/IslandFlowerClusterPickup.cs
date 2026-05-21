@@ -27,6 +27,9 @@ namespace PrivateIsland
                 return;
             }
 
+            IslandActionToolVisual toolVisual = IslandActionToolVisual.GetOrCreate();
+            toolVisual?.PlayOneShot(IslandActionToolVisual.ToolKind.Hand, FocusPoint, 0.18f);
+
             IslandInventory inventory = interactor.GetComponent<IslandInventory>() ?? interactor.GetComponentInParent<IslandInventory>();
             if (inventory == null || !inventory.TryAddItem(IslandItemCatalog.FlowerId, 1))
             {

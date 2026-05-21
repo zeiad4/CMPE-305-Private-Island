@@ -135,7 +135,8 @@ namespace PrivateIsland
 
             IslandInteractionPromptUI promptUI = IslandInteractionPromptUI.GetOrCreate();
             IslandActionToolVisual toolVisual = IslandActionToolVisual.GetOrCreate();
-            toolVisual?.ShowTool(IslandActionToolVisual.ToolKind.Axe);
+            Vector3 strikeTarget = ResolveStrikeTarget(interactor);
+            toolVisual?.ShowTool(IslandActionToolVisual.ToolKind.Axe, strikeTarget);
 
             float elapsed = 0f;
             int lastHitIndex = -1;
@@ -145,6 +146,7 @@ namespace PrivateIsland
                 float progress = Mathf.Clamp01(elapsed / chopDuration);
                 promptUI.ShowProgress("Chopping tree...", progress);
                 float strikePhase = Mathf.Repeat(elapsed, 1f);
+                toolVisual?.SetAimTarget(strikeTarget);
                 toolVisual?.UpdateSwing(strikePhase, 1f);
 
                 int hitIndex = Mathf.FloorToInt(elapsed);
@@ -418,6 +420,26 @@ namespace PrivateIsland
 
             transform.localRotation = restingRotation;
             hitReactionRoutine = null;
+        }
+
+        private Vector3 ResolveStrikeTarget(Transform interactor)
+        {
+            Vector3 samplePoint = interactor != null
+                ? interactor.position + Vector3.up * 1.02f
+                : transform.position + Vector3.up * 1.02f;
+
+            Collider trunkCollider = GetComponent<Collider>();
+            if (trunkCollider != null)
+            {
+                Vector3 closestPoint = trunkCollider.ClosestPoint(samplePoint);
+                if ((closestPoint - samplePoint).sqrMagnitude > 0.0001f)
+                {
+                    closestPoint.y = Mathf.Clamp(closestPoint.y, transform.position.y + 0.82f, transform.position.y + 1.28f);
+                    return closestPoint;
+                }
+            }
+
+            return transform.position + Vector3.up * Mathf.Clamp(palmHeight * 0.26f, 0.95f, 1.45f);
         }
     }
 }

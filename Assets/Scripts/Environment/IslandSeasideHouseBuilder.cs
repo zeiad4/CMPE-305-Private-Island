@@ -18,6 +18,16 @@ namespace PrivateIsland
     internal static class IslandSeasideHouseBuilder
     {
         private const string BedroomWallPortraitResourcePath = "House/BedroomWallPortrait";
+        private const string BedroomWallPortraitPixelResourcePath = "House/BedroomWallPortraitPixel";
+        private static readonly string[] BedroomWallArtResourcePaths =
+        {
+            "House/WallArt01",
+            "House/WallArt02",
+            "House/WallArt03",
+            "House/WallArt04",
+            "House/WallArt05",
+            "House/WallArt06"
+        };
 
         private static readonly Color PlasterTint = new Color(0.94f, 0.91f, 0.85f);
         private static readonly Color TrimTint = new Color(0.08f, 0.33f, 0.67f);
@@ -98,7 +108,6 @@ namespace PrivateIsland
         private static void BuildShell(Transform root, Material plasterMaterial, Material floorMaterial)
         {
             float halfWidth = HouseWidth * 0.5f;
-            float halfDepth = HouseDepth * 0.5f;
 
             CreateSolidBox(root, "LeftWall", plasterMaterial, PlasterTint, new Vector3(-halfWidth + (WallThickness * 0.5f), WallHeight * 0.5f, -0.48f), new Vector3(WallThickness, WallHeight, HouseDepth));
             CreateSolidBox(root, "RightWall", plasterMaterial, PlasterTint, new Vector3(halfWidth - (WallThickness * 0.5f), WallHeight * 0.5f, -0.48f), new Vector3(WallThickness, WallHeight, HouseDepth));
@@ -145,15 +154,18 @@ namespace PrivateIsland
             CreateBox(root, "DoorInsetRight", plasterMaterial, CeilingTint, new Vector3(1.56f, 1.94f, 4.78f), new Vector3(0.58f, 3.32f, 0.18f));
             CreateBox(root, "DoorInsetTop", plasterMaterial, CeilingTint, new Vector3(0f, 3.56f, 4.78f), new Vector3(3f, 0.18f, 0.18f));
 
-            CreateBox(root, "DoorLeafLeft", woodMaterial, WoodTint, new Vector3(-0.58f, 1.46f, 4.94f), new Vector3(1.1f, 2.92f, 0.18f));
-            CreateBox(root, "DoorLeafRight", woodMaterial, WoodTint, new Vector3(0.58f, 1.46f, 4.94f), new Vector3(1.1f, 2.92f, 0.18f));
+            CreateBox(root, "DoorLeafLeft", woodMaterial, WoodTint, new Vector3(-0.58f, 1.46f, 4.96f), new Vector3(1.16f, 2.96f, 0.2f));
+            CreateBox(root, "DoorLeafRight", woodMaterial, WoodTint, new Vector3(0.58f, 1.46f, 4.96f), new Vector3(1.16f, 2.96f, 0.2f));
             CreateCylinder(root, "DoorArch", woodMaterial, WoodTint, new Vector3(0f, 2.92f, 4.94f), new Vector3(1.22f, 0.09f, 1.22f), Quaternion.Euler(90f, 0f, 0f));
-            CreateSolidBox(root, "DoorPassageBlocker", woodMaterial, WoodTint, new Vector3(0f, 1.48f, 4.8f), new Vector3(2.34f, 2.98f, 0.34f));
-            CreateSolidBox(root, "DoorPassageBlockerArch", woodMaterial, WoodTint, new Vector3(0f, 2.94f, 4.8f), new Vector3(2.22f, 0.34f, 0.34f));
-            CreateBox(root, "DoorInnerSealLeft", woodMaterial, WoodTint, new Vector3(-0.58f, 1.46f, 4.7f), new Vector3(1.14f, 2.96f, 0.22f));
-            CreateBox(root, "DoorInnerSealRight", woodMaterial, WoodTint, new Vector3(0.58f, 1.46f, 4.7f), new Vector3(1.14f, 2.96f, 0.22f));
-            CreateBox(root, "DoorInnerTopSeal", woodMaterial, WoodTint, new Vector3(0f, 3.02f, 4.68f), new Vector3(2.3f, 0.16f, 0.24f));
-            CreateCylinder(root, "DoorInnerArchSeal", woodMaterial, WoodTint, new Vector3(0f, 2.92f, 4.7f), new Vector3(1.16f, 0.12f, 1.16f), Quaternion.Euler(90f, 0f, 0f));
+            CreateSolidBox(root, "DoorPassageBlocker", woodMaterial, WoodTint, new Vector3(0f, 1.5f, 4.8f), new Vector3(2.52f, 3.06f, 0.42f));
+            CreateSolidBox(root, "DoorPassageBlockerArch", woodMaterial, WoodTint, new Vector3(0f, 2.98f, 4.8f), new Vector3(2.34f, 0.38f, 0.42f));
+            CreateBox(root, "DoorInnerSealLeft", woodMaterial, WoodTint, new Vector3(-0.58f, 1.46f, 4.68f), new Vector3(1.2f, 3.02f, 0.26f));
+            CreateBox(root, "DoorInnerSealRight", woodMaterial, WoodTint, new Vector3(0.58f, 1.46f, 4.68f), new Vector3(1.2f, 3.02f, 0.26f));
+            CreateBox(root, "DoorInnerTopSeal", woodMaterial, WoodTint, new Vector3(0f, 3.06f, 4.66f), new Vector3(2.42f, 0.18f, 0.28f));
+            CreateCylinder(root, "DoorInnerArchSeal", woodMaterial, WoodTint, new Vector3(0f, 2.92f, 4.68f), new Vector3(1.22f, 0.13f, 1.22f), Quaternion.Euler(90f, 0f, 0f));
+            CreateSolidBox(root, "DoorBottomSeal", woodMaterial, WoodTint, new Vector3(0f, 0.1f, 4.76f), new Vector3(2.44f, 0.14f, 0.48f));
+            CreateSolidBox(root, "DoorSideSealLeft", plasterMaterial, CeilingTint, new Vector3(-1.36f, 1.46f, 4.56f), new Vector3(0.22f, 3.02f, 0.62f));
+            CreateSolidBox(root, "DoorSideSealRight", plasterMaterial, CeilingTint, new Vector3(1.36f, 1.46f, 4.56f), new Vector3(0.22f, 3.02f, 0.62f));
 
             CreateBox(root, "DoorBandTopLeft", detailMaterial, MetalTint, new Vector3(-0.58f, 2.58f, 5.05f), new Vector3(0.72f, 0.08f, 0.04f));
             CreateBox(root, "DoorBandTopRight", detailMaterial, MetalTint, new Vector3(0.58f, 2.58f, 5.05f), new Vector3(0.72f, 0.08f, 0.04f));
@@ -174,9 +186,9 @@ namespace PrivateIsland
             CreateLantern(root, detailMaterial, new Vector3(-4.72f, 1.86f, 4.98f));
             CreateLantern(root, detailMaterial, new Vector3(4.72f, 1.86f, 4.98f));
 
-            CreateSolidBox(root, "DoorBackstopLeft", plasterMaterial, CeilingTint, new Vector3(-1.28f, 1.74f, 4.18f), new Vector3(0.18f, 3.08f, 0.94f));
-            CreateSolidBox(root, "DoorBackstopRight", plasterMaterial, CeilingTint, new Vector3(1.28f, 1.74f, 4.18f), new Vector3(0.18f, 3.08f, 0.94f));
-            CreateSolidBox(root, "DoorBackstopTop", plasterMaterial, CeilingTint, new Vector3(0f, 3.26f, 4.18f), new Vector3(2.74f, 0.18f, 0.94f));
+            CreateSolidBox(root, "DoorBackstopLeft", plasterMaterial, CeilingTint, new Vector3(-1.3f, 1.74f, 4.16f), new Vector3(0.24f, 3.12f, 1.02f));
+            CreateSolidBox(root, "DoorBackstopRight", plasterMaterial, CeilingTint, new Vector3(1.3f, 1.74f, 4.16f), new Vector3(0.24f, 3.12f, 1.02f));
+            CreateSolidBox(root, "DoorBackstopTop", plasterMaterial, CeilingTint, new Vector3(0f, 3.28f, 4.16f), new Vector3(2.86f, 0.22f, 1.02f));
         }
 
         private static void BuildInterior(Transform root, Material plasterMaterial, Material accentMaterial, Material woodMaterial, Material detailMaterial, Material floorMaterial)
@@ -194,7 +206,6 @@ namespace PrivateIsland
             GameObject rugRoot = BuildBedroomRug(root, accentMaterial);
             GameObject bedsideRoot = BuildBedsideDecor(root, woodMaterial, plasterMaterial, detailMaterial);
             GameObject galleryRoot = BuildBedroomWallPortrait(root, woodMaterial, plasterMaterial, detailMaterial);
-            GameObject dresserRoot = BuildBedroomDresser(root, woodMaterial, plasterMaterial, detailMaterial);
 
             List<Renderer> roomRenderers = new List<Renderer>
             {
@@ -209,8 +220,6 @@ namespace PrivateIsland
             roomRenderers.AddRange(rugRoot.GetComponentsInChildren<Renderer>());
             roomRenderers.AddRange(bedsideRoot.GetComponentsInChildren<Renderer>());
             roomRenderers.AddRange(galleryRoot.GetComponentsInChildren<Renderer>());
-            roomRenderers.AddRange(dresserRoot.GetComponentsInChildren<Renderer>());
-
             Color[] lightsOnColors =
             {
                 InteriorWallTint,
@@ -361,52 +370,117 @@ namespace PrivateIsland
 
         private static GameObject BuildBedroomWallPortrait(Transform root, Material woodMaterial, Material plasterMaterial, Material detailMaterial)
         {
-            GameObject galleryRoot = new GameObject("BedroomPictureWall");
-            galleryRoot.transform.SetParent(root, false);
-            galleryRoot.transform.localPosition = Vector3.zero;
+            GameObject pictureRoot = new GameObject("BedroomPictureWall");
+            pictureRoot.transform.SetParent(root, false);
+            pictureRoot.transform.localPosition = Vector3.zero;
 
-            CreateFramedPortrait(galleryRoot.transform, "PortraitMain", woodMaterial, new Vector3(-5.93f, 2.26f, -1.62f), Quaternion.Euler(0f, 90f, 0f), new Vector2(2.86f, 1.68f));
-            CreateFramedPortrait(galleryRoot.transform, "PortraitUpper", woodMaterial, new Vector3(-5.93f, 3.18f, -3.18f), Quaternion.Euler(0f, 90f, 0f), new Vector2(1.58f, 1f));
-            CreateFramedPortrait(galleryRoot.transform, "PortraitLower", woodMaterial, new Vector3(-5.93f, 1.36f, -3.06f), Quaternion.Euler(0f, 90f, 0f), new Vector2(1.42f, 0.92f));
-            CreateFramedPortrait(galleryRoot.transform, "PortraitHintCandidate", woodMaterial, new Vector3(-5.93f, 2.18f, 0.3f), Quaternion.Euler(0f, 90f, 0f), new Vector2(1.84f, 1.16f));
+            GameObject clueFrame = CreateFramedPortrait(
+                pictureRoot.transform,
+                "PortraitPixelHint",
+                woodMaterial,
+                new Vector3(-5.93f, 1.46f, 3.5f),
+                Quaternion.Euler(0f, 90f, 0f),
+                new Vector2(0.62f, 0.4f),
+                BedroomWallPortraitPixelResourcePath,
+                true);
 
-            CreateBox(galleryRoot.transform, "GalleryWallTrim", detailMaterial, new Color(0.88f, 0.84f, 0.78f), new Vector3(-5.94f, 0.92f, -1.4f), new Vector3(0.06f, 0.1f, 5.9f));
-            CreateBox(galleryRoot.transform, "GalleryWallSconce", plasterMaterial, new Color(0.96f, 0.9f, 0.76f), new Vector3(-5.9f, 3.82f, -1.32f), new Vector3(0.1f, 0.26f, 0.34f));
+            GameObject topLeftFrame = CreateFramedPortrait(
+                pictureRoot.transform,
+                "PortraitTopLeft",
+                woodMaterial,
+                new Vector3(-5.93f, 3.1f, -3.35f),
+                Quaternion.Euler(0f, 90f, 0f),
+                new Vector2(2.18f, 1.28f),
+                BedroomWallArtResourcePaths[0]);
 
-            return galleryRoot;
+            GameObject topCenterFrame = CreateFramedPortrait(
+                pictureRoot.transform,
+                "PortraitTopCenter",
+                woodMaterial,
+                new Vector3(-5.93f, 3.1f, -0.42f),
+                Quaternion.Euler(0f, 90f, 0f),
+                new Vector2(2.18f, 1.28f),
+                BedroomWallArtResourcePaths[1]);
+
+            GameObject topRightFrame = CreateFramedPortrait(
+                pictureRoot.transform,
+                "PortraitTopRight",
+                woodMaterial,
+                new Vector3(-5.93f, 3.1f, 2.51f),
+                Quaternion.Euler(0f, 90f, 0f),
+                new Vector2(2.18f, 1.28f),
+                BedroomWallArtResourcePaths[2]);
+
+            GameObject bottomLeftFrame = CreateFramedPortrait(
+                pictureRoot.transform,
+                "PortraitBottomLeft",
+                woodMaterial,
+                new Vector3(-5.93f, 1.54f, -1.9f),
+                Quaternion.Euler(0f, 90f, 0f),
+                new Vector2(2.18f, 1.28f),
+                BedroomWallArtResourcePaths[3]);
+
+            GameObject bottomRightFrame = CreateFramedPortrait(
+                pictureRoot.transform,
+                "PortraitBottomRight",
+                woodMaterial,
+                new Vector3(-5.93f, 1.54f, 1.18f),
+                Quaternion.Euler(0f, 90f, 0f),
+                new Vector2(2.18f, 1.28f),
+                BedroomWallArtResourcePaths[4]);
+
+            IslandHiddenNoteInteraction hiddenNote = BuildHiddenWallNote(
+                pictureRoot.transform,
+                plasterMaterial,
+                detailMaterial,
+                new Vector3(-5.88f, 1.46f, 3.5f));
+
+            ConfigurePictureFrameInteraction(
+                clueFrame,
+                new Vector3(-4.94f, 0.23f, 4.18f),
+                CreateFloorFrameRotation(new Vector3(-0.24f, 0.93f, 0.28f), new Vector3(0.42f, 0f, 0.91f)),
+                hiddenNote,
+                "Press E to knock down the clue picture");
+
+            ConfigurePictureFrameInteraction(
+                topLeftFrame,
+                new Vector3(-5.08f, 0.24f, -3.84f),
+                CreateFloorFrameRotation(new Vector3(0.22f, -0.94f, -0.25f), new Vector3(-0.32f, 0f, 0.95f)),
+                null,
+                "Press E to knock down the picture");
+
+            ConfigurePictureFrameInteraction(
+                topCenterFrame,
+                new Vector3(-4.82f, 0.22f, -0.7f),
+                CreateFloorFrameRotation(new Vector3(-0.18f, 0.95f, -0.24f), new Vector3(0.16f, 0f, 0.99f)),
+                null,
+                "Press E to knock down the picture");
+
+            ConfigurePictureFrameInteraction(
+                topRightFrame,
+                new Vector3(-5.11f, 0.25f, 2.94f),
+                CreateFloorFrameRotation(new Vector3(0.18f, -0.95f, 0.26f), new Vector3(-0.58f, 0f, 0.82f)),
+                null,
+                "Press E to knock down the picture");
+
+            ConfigurePictureFrameInteraction(
+                bottomLeftFrame,
+                new Vector3(-4.89f, 0.24f, -2.22f),
+                CreateFloorFrameRotation(new Vector3(-0.26f, 0.92f, 0.28f), new Vector3(0.68f, 0f, 0.73f)),
+                null,
+                "Press E to knock down the picture");
+
+            ConfigurePictureFrameInteraction(
+                bottomRightFrame,
+                new Vector3(-5.02f, 0.24f, 1.52f),
+                CreateFloorFrameRotation(new Vector3(0.16f, -0.95f, -0.25f), new Vector3(-0.18f, 0f, 0.98f)),
+                null,
+                "Press E to knock down the picture");
+
+            return pictureRoot;
         }
 
-        private static GameObject BuildBedroomDresser(Transform root, Material woodMaterial, Material plasterMaterial, Material detailMaterial)
-        {
-            GameObject dresserRoot = new GameObject("BedroomDresser");
-            dresserRoot.transform.SetParent(root, false);
-            dresserRoot.transform.localPosition = new Vector3(-5.22f, 0f, -1.5f);
-            dresserRoot.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
-
-            CreateBox(dresserRoot.transform, "Body", woodMaterial, new Color(0.54f, 0.35f, 0.2f), new Vector3(0f, 0.7f, 0f), new Vector3(2.62f, 1.4f, 0.72f));
-            CreateBox(dresserRoot.transform, "Top", woodMaterial, new Color(0.61f, 0.42f, 0.24f), new Vector3(0f, 1.46f, 0f), new Vector3(2.76f, 0.12f, 0.84f));
-
-            for (int row = 0; row < 3; row++)
-            {
-                float y = 1.1f - (row * 0.36f);
-                CreateBox(dresserRoot.transform, $"DrawerLeft_{row}", woodMaterial, new Color(0.48f, 0.31f, 0.18f), new Vector3(-0.62f, y, 0.39f), new Vector3(0.92f, 0.24f, 0.05f));
-                CreateBox(dresserRoot.transform, $"DrawerRight_{row}", woodMaterial, new Color(0.48f, 0.31f, 0.18f), new Vector3(0.62f, y, 0.39f), new Vector3(0.92f, 0.24f, 0.05f));
-                CreateBox(dresserRoot.transform, $"HandleLeft_{row}", detailMaterial, MetalTint, new Vector3(-0.62f, y, 0.43f), new Vector3(0.16f, 0.04f, 0.03f));
-                CreateBox(dresserRoot.transform, $"HandleRight_{row}", detailMaterial, MetalTint, new Vector3(0.62f, y, 0.43f), new Vector3(0.16f, 0.04f, 0.03f));
-            }
-
-            CreateBox(dresserRoot.transform, "Vase", plasterMaterial, new Color(0.84f, 0.86f, 0.9f), new Vector3(-0.78f, 1.76f, -0.06f), new Vector3(0.24f, 0.42f, 0.24f));
-            CreateBox(dresserRoot.transform, "PlantStem", detailMaterial, new Color(0.25f, 0.55f, 0.27f), new Vector3(-0.78f, 2.04f, -0.06f), new Vector3(0.06f, 0.22f, 0.06f));
-            CreateBox(dresserRoot.transform, "PlantLeafA", detailMaterial, new Color(0.31f, 0.68f, 0.3f), new Vector3(-0.86f, 2.18f, -0.06f), new Vector3(0.22f, 0.08f, 0.08f), Quaternion.Euler(0f, 0f, 28f));
-            CreateBox(dresserRoot.transform, "PlantLeafB", detailMaterial, new Color(0.31f, 0.68f, 0.3f), new Vector3(-0.7f, 2.16f, -0.06f), new Vector3(0.22f, 0.08f, 0.08f), Quaternion.Euler(0f, 0f, -24f));
-            CreateBox(dresserRoot.transform, "BookStackA", woodMaterial, new Color(0.15f, 0.44f, 0.68f), new Vector3(0.22f, 1.66f, -0.08f), new Vector3(0.36f, 0.08f, 0.28f));
-            CreateBox(dresserRoot.transform, "BookStackB", woodMaterial, new Color(0.84f, 0.72f, 0.28f), new Vector3(0.22f, 1.76f, -0.08f), new Vector3(0.36f, 0.07f, 0.28f));
-            CreateBox(dresserRoot.transform, "ShellBowl", plasterMaterial, new Color(0.93f, 0.88f, 0.8f), new Vector3(0.96f, 1.67f, -0.04f), new Vector3(0.32f, 0.08f, 0.24f));
-
-            return dresserRoot;
-        }
-
-        private static void CreateFramedPortrait(Transform parent, string name, Material woodMaterial, Vector3 localPosition, Quaternion localRotation, Vector2 artSize)
+        private static GameObject CreateFramedPortrait(Transform parent, string name, Material woodMaterial, Vector3 localPosition, Quaternion localRotation, Vector2 artSize, string resourcePath, bool pixelated = false)
         {
             GameObject frameRoot = new GameObject(name);
             frameRoot.transform.SetParent(parent, false);
@@ -422,10 +496,65 @@ namespace PrivateIsland
             CreateBox(frameRoot.transform, "FrameLeft", woodMaterial, new Color(0.46f, 0.31f, 0.18f), new Vector3((-outerWidth * 0.5f) + 0.06f, 0f, 0f), new Vector3(0.12f, outerHeight + 0.08f, 0.1f));
             CreateBox(frameRoot.transform, "FrameRight", woodMaterial, new Color(0.46f, 0.31f, 0.18f), new Vector3((outerWidth * 0.5f) - 0.06f, 0f, 0f), new Vector3(0.12f, outerHeight + 0.08f, 0.1f));
 
-            GameObject portraitObject = IslandInteractionUtility.CreateMeshObject("PortraitImage", PrimitiveType.Quad, CreatePortraitMaterial(), frameRoot.transform);
+            GameObject portraitObject = IslandInteractionUtility.CreateMeshObject("PortraitImage", PrimitiveType.Quad, CreatePortraitMaterial(resourcePath, pixelated), frameRoot.transform);
             portraitObject.transform.localPosition = new Vector3(0f, 0f, 0.032f);
             portraitObject.transform.localRotation = Quaternion.identity;
             portraitObject.transform.localScale = new Vector3(artSize.x, artSize.y, 1f);
+            return frameRoot;
+        }
+
+        private static IslandHiddenNoteInteraction BuildHiddenWallNote(Transform parent, Material plasterMaterial, Material detailMaterial, Vector3 localPosition)
+        {
+            GameObject noteRoot = new GameObject("HiddenWallNote");
+            noteRoot.transform.SetParent(parent, false);
+            noteRoot.transform.localPosition = localPosition;
+            noteRoot.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+
+            GameObject visualRoot = new GameObject("VisualRoot");
+            visualRoot.transform.SetParent(noteRoot.transform, false);
+            visualRoot.transform.localPosition = Vector3.zero;
+            visualRoot.transform.localRotation = Quaternion.identity;
+
+            CreateBox(visualRoot.transform, "PaperSheet", plasterMaterial, new Color(0.94f, 0.9f, 0.74f), new Vector3(0f, 0f, 0f), new Vector3(0.68f, 0.9f, 0.025f));
+            CreateBox(visualRoot.transform, "PaperFold", plasterMaterial, new Color(0.88f, 0.84f, 0.68f), new Vector3(0.16f, 0.28f, 0.014f), new Vector3(0.16f, 0.12f, 0.01f), Quaternion.Euler(0f, 0f, -18f));
+            CreateBox(visualRoot.transform, "TapeTop", detailMaterial, new Color(0.86f, 0.82f, 0.64f), new Vector3(0f, 0.42f, 0.016f), new Vector3(0.22f, 0.07f, 0.01f), Quaternion.Euler(0f, 0f, 8f));
+            CreateBox(visualRoot.transform, "InkLineA", detailMaterial, new Color(0.24f, 0.18f, 0.12f), new Vector3(0f, 0.14f, 0.015f), new Vector3(0.4f, 0.03f, 0.01f));
+            CreateBox(visualRoot.transform, "InkLineB", detailMaterial, new Color(0.24f, 0.18f, 0.12f), new Vector3(0f, 0.04f, 0.015f), new Vector3(0.32f, 0.03f, 0.01f));
+            CreateBox(visualRoot.transform, "InkLineC", detailMaterial, new Color(0.24f, 0.18f, 0.12f), new Vector3(-0.04f, -0.06f, 0.015f), new Vector3(0.38f, 0.03f, 0.01f));
+
+            IslandHiddenNoteInteraction hiddenNote = noteRoot.AddComponent<IslandHiddenNoteInteraction>();
+            hiddenNote.Configure(visualRoot, IslandItemCatalog.HiddenNoteId, 2.3f, 0.08f);
+            return hiddenNote;
+        }
+
+        private static void ConfigurePictureFrameInteraction(GameObject frameObject, Vector3 fallenLocalPosition, Quaternion fallenLocalRotation, IslandHiddenNoteInteraction hiddenNote, string prompt)
+        {
+            if (frameObject == null)
+            {
+                return;
+            }
+
+            IslandPictureFrameInteraction interaction = frameObject.AddComponent<IslandPictureFrameInteraction>();
+            interaction.Configure(
+                frameObject.transform,
+                fallenLocalPosition,
+                fallenLocalRotation,
+                hiddenNote,
+                2.45f,
+                0.05f,
+                prompt);
+        }
+
+        private static Quaternion CreateFloorFrameRotation(Vector3 surfaceNormal, Vector3 topEdgeDirection)
+        {
+            Vector3 normalizedNormal = surfaceNormal.sqrMagnitude > 0.0001f ? surfaceNormal.normalized : Vector3.up;
+            Vector3 tangent = Vector3.ProjectOnPlane(topEdgeDirection, normalizedNormal);
+            if (tangent.sqrMagnitude < 0.0001f)
+            {
+                tangent = Vector3.ProjectOnPlane(Vector3.forward, normalizedNormal);
+            }
+
+            return Quaternion.LookRotation(normalizedNormal, tangent.normalized);
         }
 
         private static void BuildInteriorCeilingLightFixture(Transform root, Material detailMaterial, Material plasterMaterial)
@@ -457,7 +586,7 @@ namespace PrivateIsland
 
             GameObject switchRoot = new GameObject("WallSwitch");
             switchRoot.transform.SetParent(root, false);
-            switchRoot.transform.localPosition = new Vector3(3.18f, 1.36f, -4.96f);
+            switchRoot.transform.localPosition = new Vector3(-5.02f, 1.84f, -4.96f);
             switchRoot.transform.localRotation = Quaternion.identity;
 
             CreateBox(switchRoot.transform, "SwitchPlate", plasterMaterial, new Color(0.86f, 0.84f, 0.8f), new Vector3(0f, 0f, 0f), new Vector3(0.24f, 0.38f, 0.06f));
@@ -479,7 +608,7 @@ namespace PrivateIsland
                 1.25f);
         }
 
-        private static Material CreatePortraitMaterial()
+        private static Material CreatePortraitMaterial(string resourcePath, bool pixelated = false)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             shader ??= Shader.Find("Standard");
@@ -490,11 +619,12 @@ namespace PrivateIsland
                 hideFlags = HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild
             };
 
-            Texture2D portraitTexture = Resources.Load<Texture2D>(BedroomWallPortraitResourcePath);
+            Texture2D portraitTexture = Resources.Load<Texture2D>(resourcePath);
+            portraitTexture ??= Resources.Load<Texture2D>(BedroomWallPortraitResourcePath);
             if (portraitTexture != null)
             {
-                portraitTexture.filterMode = FilterMode.Trilinear;
-                portraitTexture.anisoLevel = 8;
+                portraitTexture.filterMode = pixelated ? FilterMode.Point : FilterMode.Trilinear;
+                portraitTexture.anisoLevel = pixelated ? 0 : 8;
                 portraitTexture.wrapMode = TextureWrapMode.Clamp;
 
                 material.mainTexture = portraitTexture;

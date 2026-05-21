@@ -338,9 +338,20 @@ namespace PrivateIsland
             MeshRenderer renderer = GetOrAddComponent<MeshRenderer>(terrainRoot.gameObject);
             MeshCollider collider = GetOrAddComponent<MeshCollider>(terrainRoot.gameObject);
 
-            terrainMesh ??= CreateRuntimeMesh("Generated Island Terrain");
-            terrainTexture ??= CreateRuntimeTexture("Generated Island Texture");
-            terrainMaterial ??= CreateRuntimeMaterial("Island Terrain Material");
+            if (terrainMesh == null)
+            {
+                terrainMesh = CreateRuntimeMesh("Generated Island Terrain");
+            }
+
+            if (terrainTexture == null)
+            {
+                terrainTexture = CreateRuntimeTexture("Generated Island Texture");
+            }
+
+            if (terrainMaterial == null)
+            {
+                terrainMaterial = CreateRuntimeMaterial("Island Terrain Material");
+            }
 
             IslandMeshBuilder.RebuildTerrainMesh(terrainMesh, terrainResolution, islandSize, peakHeight);
             IslandMeshBuilder.RebuildTerrainTexture(terrainTexture, textureResolution, islandSize, peakHeight, seaLevel);
@@ -364,27 +375,38 @@ namespace PrivateIsland
             MeshFilter filter = GetOrAddComponent<MeshFilter>(waterRoot.gameObject);
             MeshRenderer renderer = GetOrAddComponent<MeshRenderer>(waterRoot.gameObject);
 
-            waterMesh ??= CreateRuntimeMesh("Generated Island Water");
-            waterMaterial ??= CreateRuntimeMaterial("Island Water Material");
+            if (waterMesh == null)
+            {
+                waterMesh = CreateRuntimeMesh("Generated Island Water");
+            }
 
-            IslandMeshBuilder.RebuildWaterMesh(waterMesh, islandSize * 1.65f);
+            if (waterMaterial == null)
+            {
+                waterMaterial = CreateRuntimeMaterial("Island Water Material");
+            }
+
+            float waterRadius = islandSize * 2.35f;
+            IslandMeshBuilder.RebuildWaterMesh(waterMesh, waterRadius, 160);
 
             waterRoot.localPosition = new Vector3(0f, seaLevel, 0f);
             filter.sharedMesh = waterMesh;
 
-            waterMaterial.SetColor("_BaseColor", new Color(0.14f, 0.56f, 0.68f, 0.72f));
-            waterMaterial.SetColor("_Color", new Color(0.14f, 0.56f, 0.68f, 0.72f));
-            waterMaterial.SetColor("_EmissionColor", new Color(0.08f, 0.28f, 0.33f) * 0.22f);
+            waterMaterial.SetColor("_BaseColor", new Color(0.16f, 0.56f, 0.7f, 1f));
+            waterMaterial.SetColor("_Color", new Color(0.16f, 0.56f, 0.7f, 1f));
+            waterMaterial.SetColor("_EmissionColor", new Color(0.08f, 0.28f, 0.33f) * 0.3f);
             waterMaterial.EnableKeyword("_EMISSION");
-            waterMaterial.SetFloat("_Smoothness", 0.96f);
+            waterMaterial.SetFloat("_Smoothness", 0.94f);
             waterMaterial.SetFloat("_Metallic", 0.02f);
-            waterMaterial.SetFloat("_Surface", 1f);
+            waterMaterial.SetFloat("_Surface", 0f);
             waterMaterial.SetFloat("_Blend", 0f);
-            waterMaterial.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-            waterMaterial.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-            waterMaterial.SetFloat("_ZWrite", 0f);
-            waterMaterial.renderQueue = (int)RenderQueue.Transparent;
+            waterMaterial.SetFloat("_SrcBlend", (float)BlendMode.One);
+            waterMaterial.SetFloat("_DstBlend", (float)BlendMode.Zero);
+            waterMaterial.SetFloat("_ZWrite", 1f);
+            waterMaterial.renderQueue = (int)RenderQueue.Geometry;
             renderer.sharedMaterial = waterMaterial;
+
+            IslandWaterSurfaceAnimator waterAnimator = GetOrAddComponent<IslandWaterSurfaceAnimator>(waterRoot.gameObject);
+            waterAnimator.Configure(waterRadius);
         }
 
         private void BuildProps()
@@ -393,10 +415,25 @@ namespace PrivateIsland
             Transform propsRoot = EnsureChild(root, "Props");
             ClearChildren(propsRoot);
 
-            trunkMaterial ??= CreateRuntimeMaterial("Island Trunk Material");
-            leavesMaterial ??= CreateRuntimeMaterial("Island Leaves Material");
-            rockMaterial ??= CreateRuntimeMaterial("Island Rock Material");
-            dockMaterial ??= CreateRuntimeMaterial("Island Dock Material");
+            if (trunkMaterial == null)
+            {
+                trunkMaterial = CreateRuntimeMaterial("Island Trunk Material");
+            }
+
+            if (leavesMaterial == null)
+            {
+                leavesMaterial = CreateRuntimeMaterial("Island Leaves Material");
+            }
+
+            if (rockMaterial == null)
+            {
+                rockMaterial = CreateRuntimeMaterial("Island Rock Material");
+            }
+
+            if (dockMaterial == null)
+            {
+                dockMaterial = CreateRuntimeMaterial("Island Dock Material");
+            }
 
             trunkMaterial.SetColor("_BaseColor", new Color(0.3f, 0.22f, 0.14f));
             trunkMaterial.SetFloat("_Smoothness", 0.08f);
@@ -410,11 +447,30 @@ namespace PrivateIsland
             dockMaterial.SetColor("_BaseColor", new Color(0.52f, 0.38f, 0.24f));
             dockMaterial.SetFloat("_Smoothness", 0.2f);
 
-            housePlasterMaterial ??= CreateRuntimeMaterial("Island House Plaster");
-            houseAccentMaterial ??= CreateRuntimeMaterial("Island House Accent");
-            houseWoodMaterial ??= CreateRuntimeMaterial("Island House Wood");
-            houseDetailMaterial ??= CreateRuntimeMaterial("Island House Detail");
-            houseFloorMaterial ??= CreateRuntimeMaterial("Island House Floor");
+            if (housePlasterMaterial == null)
+            {
+                housePlasterMaterial = CreateRuntimeMaterial("Island House Plaster");
+            }
+
+            if (houseAccentMaterial == null)
+            {
+                houseAccentMaterial = CreateRuntimeMaterial("Island House Accent");
+            }
+
+            if (houseWoodMaterial == null)
+            {
+                houseWoodMaterial = CreateRuntimeMaterial("Island House Wood");
+            }
+
+            if (houseDetailMaterial == null)
+            {
+                houseDetailMaterial = CreateRuntimeMaterial("Island House Detail");
+            }
+
+            if (houseFloorMaterial == null)
+            {
+                houseFloorMaterial = CreateRuntimeMaterial("Island House Floor");
+            }
 
             housePlasterMaterial.SetColor("_BaseColor", new Color(0.95f, 0.94f, 0.9f));
             housePlasterMaterial.SetFloat("_Smoothness", 0.14f);
@@ -557,19 +613,38 @@ namespace PrivateIsland
             Transform characterRoot = EnsureChild(root, "Character");
             ClearChildren(characterRoot);
 
-            characterSkinMaterial ??= CreateRuntimeMaterial("Island Character Skin");
-            characterShirtMaterial ??= CreateRuntimeMaterial("Island Character Shirt");
-            characterShortsMaterial ??= CreateRuntimeMaterial("Island Character Shorts");
-            characterStrawMaterial ??= CreateRuntimeMaterial("Island Character Straw");
-            characterHairMaterial ??= CreateRuntimeMaterial("Island Character Hair");
+            if (characterSkinMaterial == null)
+            {
+                characterSkinMaterial = CreateRuntimeMaterial("Island Character Skin");
+            }
 
-            characterSkinMaterial.SetColor("_BaseColor", new Color(0.76f, 0.59f, 0.42f));
+            if (characterShirtMaterial == null)
+            {
+                characterShirtMaterial = CreateRuntimeMaterial("Island Character Shirt");
+            }
+
+            if (characterShortsMaterial == null)
+            {
+                characterShortsMaterial = CreateRuntimeMaterial("Island Character Shorts");
+            }
+
+            if (characterStrawMaterial == null)
+            {
+                characterStrawMaterial = CreateRuntimeMaterial("Island Character Straw");
+            }
+
+            if (characterHairMaterial == null)
+            {
+                characterHairMaterial = CreateRuntimeMaterial("Island Character Hair");
+            }
+
+            characterSkinMaterial.SetColor("_BaseColor", new Color(0.78f, 0.62f, 0.44f));
             characterSkinMaterial.SetFloat("_Smoothness", 0.18f);
 
-            characterShirtMaterial.SetColor("_BaseColor", new Color(0.18f, 0.58f, 0.54f));
+            characterShirtMaterial.SetColor("_BaseColor", new Color(0.22f, 0.63f, 0.78f));
             characterShirtMaterial.SetFloat("_Smoothness", 0.12f);
 
-            characterShortsMaterial.SetColor("_BaseColor", new Color(0.91f, 0.52f, 0.25f));
+            characterShortsMaterial.SetColor("_BaseColor", new Color(0.31f, 0.29f, 0.68f));
             characterShortsMaterial.SetFloat("_Smoothness", 0.14f);
 
             characterStrawMaterial.SetColor("_BaseColor", new Color(0.83f, 0.72f, 0.45f));
@@ -638,11 +713,23 @@ namespace PrivateIsland
                 : new Vector3(0.91f, 0f, -0.42f).normalized;
             Vector3 right = new Vector3(forward.z, 0f, -forward.x);
 
-            Vector3 loungeCenter = houseCenter + (forward * 8.45f);
-            CreateOutdoorChair(decorRoot.transform, loungeCenter + (right * -2.2f), Quaternion.LookRotation(-forward + (right * 0.12f), Vector3.up), new Color(0.16f, 0.49f, 0.72f));
-            CreateOutdoorChair(decorRoot.transform, loungeCenter + (right * 2.2f), Quaternion.LookRotation(-forward - (right * 0.12f), Vector3.up), new Color(0.82f, 0.66f, 0.3f));
-            CreateOutdoorSideTable(decorRoot.transform, loungeCenter + (forward * -0.22f));
-            CreateOutdoorUmbrella(decorRoot.transform, loungeCenter + (forward * 0.34f));
+            Vector3 GroundedDecorPosition(Vector3 position, float yOffset = 0f)
+            {
+                position = ClampToIslandBuildPosition(position);
+                position.y = IslandMeshBuilder.SampleHeight(position.x, position.z, islandSize, peakHeight) + yOffset;
+                return position;
+            }
+
+            Vector3 loungeCenter = GroundedDecorPosition(houseCenter + (forward * 11.6f), 0.02f);
+            Vector3 leftChairPosition = GroundedDecorPosition(loungeCenter + (right * -2.45f), 0.02f);
+            Vector3 rightChairPosition = GroundedDecorPosition(loungeCenter + (right * 2.45f), 0.02f);
+            Vector3 sideTablePosition = GroundedDecorPosition(loungeCenter + (forward * 0.12f), 0.02f);
+            Vector3 umbrellaPosition = GroundedDecorPosition(loungeCenter + (forward * 0.42f), 0.02f);
+
+            CreateOutdoorChair(decorRoot.transform, leftChairPosition, Quaternion.LookRotation((forward + (right * 0.08f)).normalized, Vector3.up), new Color(0.16f, 0.49f, 0.72f));
+            CreateOutdoorChair(decorRoot.transform, rightChairPosition, Quaternion.LookRotation((forward - (right * 0.08f)).normalized, Vector3.up), new Color(0.82f, 0.66f, 0.3f));
+            CreateOutdoorSideTable(decorRoot.transform, sideTablePosition);
+            CreateOutdoorUmbrella(decorRoot.transform, umbrellaPosition);
 
             CreateOutdoorPlanter(decorRoot.transform, houseCenter + (forward * 6.2f) + (right * -4.45f), 1.1f);
             CreateOutdoorPlanter(decorRoot.transform, houseCenter + (forward * 6.2f) + (right * 4.45f), 1.05f);
@@ -697,6 +784,24 @@ namespace PrivateIsland
                 leg.transform.localPosition = new Vector3(x, 0.22f, z);
                 leg.transform.localScale = new Vector3(0.05f, 0.24f, 0.05f);
             }
+
+            GameObject sitAnchorObject = new GameObject("SitAnchor");
+            sitAnchorObject.transform.SetParent(chair.transform, false);
+            sitAnchorObject.transform.localPosition = new Vector3(0f, 0.5f, 0.06f);
+            sitAnchorObject.transform.localRotation = Quaternion.identity;
+
+            GameObject viewAnchorObject = new GameObject("ViewAnchor");
+            viewAnchorObject.transform.SetParent(chair.transform, false);
+            viewAnchorObject.transform.localPosition = new Vector3(0f, 1.18f, -0.08f);
+            viewAnchorObject.transform.localRotation = Quaternion.identity;
+
+            GameObject exitAnchorObject = new GameObject("ExitAnchor");
+            exitAnchorObject.transform.SetParent(chair.transform, false);
+            exitAnchorObject.transform.localPosition = new Vector3(1.02f, 0.04f, 0.18f);
+            exitAnchorObject.transform.localRotation = Quaternion.Euler(0f, 12f, 0f);
+
+            IslandChairSitInteraction sitInteraction = chair.AddComponent<IslandChairSitInteraction>();
+            sitInteraction.Configure(sitAnchorObject.transform, viewAnchorObject.transform, exitAnchorObject.transform, 2.35f, 0.95f);
         }
 
         private void CreateOutdoorSideTable(Transform parent, Vector3 worldPosition)
@@ -966,11 +1071,12 @@ namespace PrivateIsland
             visual.transform.localPosition = Vector3.zero;
             visual.transform.localRotation = Quaternion.identity;
             visual.transform.localScale = Vector3.one;
+            RemoveChildColliders(visual.transform);
             ApplyMaterialToHierarchy(visual.transform, rockAssetMaterial);
             ConfigureRockObstacleCollider(rock);
 
             IslandRockInteraction interaction = GetOrAddComponent<IslandRockInteraction>(rock);
-            interaction.Configure(Mathf.Clamp(scale * 1.68f, 2.3f, 4.4f), scale);
+            interaction.Configure(Mathf.Clamp(scale * 1.86f, 2.5f, 4.8f), scale);
         }
 
         private void CreateBushAssetInstance(Transform parent, Vector3 position)
@@ -992,6 +1098,7 @@ namespace PrivateIsland
             visual.transform.localPosition = Vector3.zero;
             visual.transform.localRotation = Quaternion.identity;
             visual.transform.localScale = Vector3.one;
+            RemoveChildColliders(visual.transform);
             ApplyMaterialToHierarchy(visual.transform, bushAssetMaterial);
 
             IslandBushReactive interaction = GetOrAddComponent<IslandBushReactive>(bush);
@@ -1000,11 +1107,25 @@ namespace PrivateIsland
 
         private void EnsureNatureAssetsLoaded()
         {
-            bushAssetPrefab ??= Resources.Load<GameObject>(BushAssetResourcePath);
-            rockAssetPrefab ??= Resources.Load<GameObject>(RockAssetResourcePath);
+            if (bushAssetPrefab == null)
+            {
+                bushAssetPrefab = Resources.Load<GameObject>(BushAssetResourcePath);
+            }
 
-            bushAssetMaterial ??= CreateNatureAssetMaterial("Island Bush Asset Material", BushTextureResourcePath, true, true);
-            rockAssetMaterial ??= CreateNatureAssetMaterial("Island Rock Asset Material", RockTextureResourcePath, false, false);
+            if (rockAssetPrefab == null)
+            {
+                rockAssetPrefab = Resources.Load<GameObject>(RockAssetResourcePath);
+            }
+
+            if (bushAssetMaterial == null)
+            {
+                bushAssetMaterial = CreateNatureAssetMaterial("Island Bush Asset Material", BushTextureResourcePath, true, true);
+            }
+
+            if (rockAssetMaterial == null)
+            {
+                rockAssetMaterial = CreateNatureAssetMaterial("Island Rock Asset Material", RockTextureResourcePath, false, false);
+            }
             ApplyMaterialTint(rockAssetMaterial, new Color(0.82f, 0.84f, 0.88f));
         }
 
@@ -1518,9 +1639,20 @@ namespace PrivateIsland
 
         private void BuildCampfire(Transform parent, Vector3 position, Vector2 dockDirection)
         {
-            campfireEmberMaterial ??= CreateRuntimeMaterial("Campfire Ember Material");
-            campfireAshMaterial ??= CreateRuntimeMaterial("Campfire Ash Material");
-            campfireStoneMaterial ??= CreateRuntimeMaterial("Campfire Stone Material");
+            if (campfireEmberMaterial == null)
+            {
+                campfireEmberMaterial = CreateRuntimeMaterial("Campfire Ember Material");
+            }
+
+            if (campfireAshMaterial == null)
+            {
+                campfireAshMaterial = CreateRuntimeMaterial("Campfire Ash Material");
+            }
+
+            if (campfireStoneMaterial == null)
+            {
+                campfireStoneMaterial = CreateRuntimeMaterial("Campfire Stone Material");
+            }
 
             campfireEmberMaterial.SetColor("_BaseColor", new Color(0.28f, 0.15f, 0.1f));
             campfireEmberMaterial.SetColor("_EmissionColor", new Color(0.75f, 0.24f, 0.05f) * 0.15f);
@@ -1775,62 +1907,63 @@ namespace PrivateIsland
 
         private void CreateIslandExplorer(Transform parent)
         {
-            GameObject torso = CreateMeshPart("Torso", cachedCapsuleMesh ??= GetPrimitiveMesh(PrimitiveType.Capsule), characterShirtMaterial, parent);
-            torso.transform.localPosition = new Vector3(0f, 1.35f, 0f);
-            torso.transform.localScale = new Vector3(0.68f, 0.62f, 0.56f);
+            GameObject torso = CreateMeshPart("Torso", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterShirtMaterial, parent);
+            torso.transform.localPosition = new Vector3(0f, 1.34f, 0f);
+            torso.transform.localScale = new Vector3(0.64f, 0.72f, 0.32f);
             HideFromFirstPerson(torso);
 
             GameObject hips = CreateMeshPart("Hips", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterShortsMaterial, parent);
-            hips.transform.localPosition = new Vector3(0f, 0.72f, 0f);
-            hips.transform.localScale = new Vector3(0.7f, 0.36f, 0.44f);
+            hips.transform.localPosition = new Vector3(0f, 0.86f, 0f);
+            hips.transform.localScale = new Vector3(0.66f, 0.24f, 0.3f);
             HideFromFirstPerson(hips);
 
-            GameObject leftLeg = CreateMeshPart("LeftLeg", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), characterSkinMaterial, parent);
-            leftLeg.transform.localPosition = new Vector3(-0.18f, 0.36f, 0f);
-            leftLeg.transform.localScale = new Vector3(0.12f, 0.36f, 0.12f);
+            GameObject leftLeg = CreateMeshPart("LeftLeg", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterShortsMaterial, parent);
+            leftLeg.transform.localPosition = new Vector3(-0.16f, 0.38f, 0f);
+            leftLeg.transform.localScale = new Vector3(0.2f, 0.74f, 0.2f);
             HideFromFirstPerson(leftLeg);
 
-            GameObject rightLeg = CreateMeshPart("RightLeg", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), characterSkinMaterial, parent);
-            rightLeg.transform.localPosition = new Vector3(0.18f, 0.36f, 0f);
-            rightLeg.transform.localScale = new Vector3(0.12f, 0.36f, 0.12f);
+            GameObject rightLeg = CreateMeshPart("RightLeg", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterShortsMaterial, parent);
+            rightLeg.transform.localPosition = new Vector3(0.16f, 0.38f, 0f);
+            rightLeg.transform.localScale = new Vector3(0.2f, 0.74f, 0.2f);
             HideFromFirstPerson(rightLeg);
 
-            GameObject leftArm = CreateMeshPart("LeftArm", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), characterSkinMaterial, parent);
-            leftArm.transform.localPosition = new Vector3(-0.5f, 1.36f, 0f);
-            leftArm.transform.localRotation = Quaternion.Euler(0f, 0f, 10f);
-            leftArm.transform.localScale = new Vector3(0.09f, 0.34f, 0.09f);
+            GameObject leftArm = CreateMeshPart("LeftArm", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterSkinMaterial, parent);
+            leftArm.transform.localPosition = new Vector3(-0.46f, 1.34f, 0f);
+            leftArm.transform.localRotation = Quaternion.identity;
+            leftArm.transform.localScale = new Vector3(0.18f, 0.68f, 0.18f);
             HideFromFirstPerson(leftArm);
 
-            GameObject rightArm = CreateMeshPart("RightArm", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), characterSkinMaterial, parent);
-            rightArm.transform.localPosition = new Vector3(0.5f, 1.36f, 0f);
-            rightArm.transform.localRotation = Quaternion.Euler(0f, 0f, -10f);
-            rightArm.transform.localScale = new Vector3(0.09f, 0.34f, 0.09f);
+            GameObject rightArm = CreateMeshPart("RightArm", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterSkinMaterial, parent);
+            rightArm.transform.localPosition = new Vector3(0.46f, 1.34f, 0f);
+            rightArm.transform.localRotation = Quaternion.identity;
+            rightArm.transform.localScale = new Vector3(0.18f, 0.68f, 0.18f);
             HideFromFirstPerson(rightArm);
 
-            GameObject head = CreateMeshPart("Head", cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere), characterSkinMaterial, parent);
-            head.transform.localPosition = new Vector3(0f, 2.12f, 0f);
-            head.transform.localScale = new Vector3(0.52f, 0.58f, 0.52f);
+            GameObject head = CreateMeshPart("Head", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterSkinMaterial, parent);
+            head.transform.localPosition = new Vector3(0f, 2.04f, 0f);
+            head.transform.localScale = new Vector3(0.54f, 0.54f, 0.54f);
             HideFromFirstPerson(head);
 
-            GameObject hair = CreateMeshPart("Hair", cachedSphereMesh ??= GetPrimitiveMesh(PrimitiveType.Sphere), characterHairMaterial, parent);
-            hair.transform.localPosition = new Vector3(0f, 2.26f, -0.04f);
-            hair.transform.localScale = new Vector3(0.54f, 0.3f, 0.54f);
+            GameObject hair = CreateMeshPart("Hair", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterHairMaterial, parent);
+            hair.transform.localPosition = new Vector3(0f, 2.18f, -0.02f);
+            hair.transform.localScale = new Vector3(0.56f, 0.24f, 0.56f);
             HideFromFirstPerson(hair);
 
-            GameObject hatBrim = CreateMeshPart("HatBrim", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), characterStrawMaterial, parent);
-            hatBrim.transform.localPosition = new Vector3(0f, 2.43f, 0f);
-            hatBrim.transform.localScale = new Vector3(0.42f, 0.03f, 0.42f);
-            HideFromFirstPerson(hatBrim);
+            GameObject faceFront = CreateMeshPart("FaceFront", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterSkinMaterial, parent);
+            faceFront.transform.localPosition = new Vector3(0f, 2.04f, 0.28f);
+            faceFront.transform.localScale = new Vector3(0.32f, 0.2f, 0.02f);
+            ApplyTint(faceFront, new Color(0.7f, 0.52f, 0.38f));
+            HideFromFirstPerson(faceFront);
 
-            GameObject hatCrown = CreateMeshPart("HatCrown", cachedCylinderMesh ??= GetPrimitiveMesh(PrimitiveType.Cylinder), characterStrawMaterial, parent);
-            hatCrown.transform.localPosition = new Vector3(0f, 2.56f, 0f);
-            hatCrown.transform.localScale = new Vector3(0.25f, 0.13f, 0.25f);
-            HideFromFirstPerson(hatCrown);
+            GameObject leftEye = CreateMeshPart("LeftEye", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterHairMaterial, parent);
+            leftEye.transform.localPosition = new Vector3(-0.1f, 2.08f, 0.29f);
+            leftEye.transform.localScale = new Vector3(0.05f, 0.06f, 0.02f);
+            HideFromFirstPerson(leftEye);
 
-            GameObject backpack = CreateMeshPart("Backpack", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), dockMaterial, parent);
-            backpack.transform.localPosition = new Vector3(0f, 1.32f, -0.27f);
-            backpack.transform.localScale = new Vector3(0.34f, 0.5f, 0.16f);
-            HideFromFirstPerson(backpack);
+            GameObject rightEye = CreateMeshPart("RightEye", cachedCubeMesh ??= GetPrimitiveMesh(PrimitiveType.Cube), characterHairMaterial, parent);
+            rightEye.transform.localPosition = new Vector3(0.1f, 2.08f, 0.29f);
+            rightEye.transform.localScale = new Vector3(0.05f, 0.06f, 0.02f);
+            HideFromFirstPerson(rightEye);
         }
 
         private static void HideFromFirstPerson(GameObject target)
@@ -1857,16 +1990,20 @@ namespace PrivateIsland
                 return;
             }
 
-            BoxCollider collider = GetOrAddComponent<BoxCollider>(rock);
-            collider.isTrigger = false;
-            collider.center = rock.transform.InverseTransformPoint(bounds.center);
+            RemoveComponent<BoxCollider>(rock);
 
-            Vector3 localSize = rock.transform.InverseTransformVector(bounds.size);
-            localSize = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
-            localSize.x = Mathf.Max(localSize.x, 0.8f);
-            localSize.y = Mathf.Max(localSize.y, 0.8f);
-            localSize.z = Mathf.Max(localSize.z, 0.8f);
-            collider.size = localSize;
+            CapsuleCollider collider = GetOrAddComponent<CapsuleCollider>(rock);
+            collider.isTrigger = false;
+            collider.direction = 1;
+
+            float footprintRadius = Mathf.Min(bounds.extents.x, bounds.extents.z) * 0.58f;
+            float radius = Mathf.Clamp(footprintRadius, 0.32f, 0.95f);
+            float height = Mathf.Clamp(bounds.size.y * 0.6f, radius * 2.1f, bounds.size.y * 0.9f);
+            float centerY = bounds.min.y + (height * 0.5f);
+
+            collider.center = rock.transform.InverseTransformPoint(new Vector3(bounds.center.x, centerY, bounds.center.z));
+            collider.radius = radius;
+            collider.height = height;
         }
 
         private void ConfigurePalmObstacleCollider(GameObject palm, float height)
@@ -1925,6 +2062,15 @@ namespace PrivateIsland
             return go.transform;
         }
 
+        private static Transform CreateAnchor(Transform parent, string name, Vector3 localPosition, Quaternion localRotation)
+        {
+            GameObject anchor = new GameObject(name);
+            anchor.transform.SetParent(parent, false);
+            anchor.transform.localPosition = localPosition;
+            anchor.transform.localRotation = localRotation;
+            return anchor.transform;
+        }
+
         private static T GetOrAddComponent<T>(GameObject target) where T : Component
         {
             T component = target.GetComponent<T>();
@@ -1946,6 +2092,33 @@ namespace PrivateIsland
             else
             {
                 UnityEngine.Object.DestroyImmediate(component);
+            }
+        }
+
+        private static void RemoveChildColliders(Transform root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                Collider collider = colliders[i];
+                if (collider == null || collider.transform == root)
+                {
+                    continue;
+                }
+
+                if (Application.isPlaying)
+                {
+                    Destroy(collider);
+                }
+                else
+                {
+                    DestroyImmediate(collider);
+                }
             }
         }
 

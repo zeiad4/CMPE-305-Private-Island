@@ -10,7 +10,8 @@ namespace PrivateIsland
         {
             Grass,
             Snow,
-            Wet
+            Wet,
+            Wood
         }
 
         [Header("Timing")]
@@ -31,10 +32,12 @@ namespace PrivateIsland
         private AudioClip[] grassStepClips;
         private AudioClip[] snowStepClips;
         private AudioClip[] wetStepClips;
+        private AudioClip[] woodStepClips;
         private float nextStepTime;
         private int grassStepIndex = -1;
         private int snowStepIndex = -1;
         private int wetStepIndex = -1;
+        private int woodStepIndex = -1;
 
         private void Awake()
         {
@@ -134,9 +137,24 @@ namespace PrivateIsland
         private void CreateRuntimeClips()
         {
             int variantCount = Mathf.Max(2, clipVariantsPerSurface);
-            grassStepClips = CreateSurfaceClips(FootstepSurface.Grass, variantCount);
-            snowStepClips = CreateSurfaceClips(FootstepSurface.Snow, variantCount);
-            wetStepClips = CreateSurfaceClips(FootstepSurface.Wet, variantCount);
+            grassStepClips = LoadSurfaceClips("Audio/Footsteps/Grass", FootstepSurface.Grass, variantCount);
+            snowStepClips = LoadSurfaceClips("Audio/Footsteps/Snow", FootstepSurface.Snow, variantCount);
+            wetStepClips = LoadSurfaceClips("Audio/Footsteps/Wet", FootstepSurface.Wet, variantCount);
+            woodStepClips = LoadSurfaceClips("Audio/Footsteps/Wood", FootstepSurface.Wood, variantCount);
+        }
+
+        private static AudioClip[] LoadSurfaceClips(string resourcesPath, FootstepSurface fallbackSurface, int variantCount)
+        {
+            AudioClip[] loadedClips = string.IsNullOrWhiteSpace(resourcesPath)
+                ? null
+                : Resources.LoadAll<AudioClip>(resourcesPath);
+
+            if (loadedClips != null && loadedClips.Length > 0)
+            {
+                return loadedClips;
+            }
+
+            return CreateSurfaceClips(fallbackSurface, variantCount);
         }
 
         private static AudioClip[] CreateSurfaceClips(FootstepSurface surface, int variantCount)
@@ -158,6 +176,7 @@ namespace PrivateIsland
                 FootstepSurface.Grass => 0.13f,
                 FootstepSurface.Snow => 0.17f,
                 FootstepSurface.Wet => 0.19f,
+                FootstepSurface.Wood => 0.15f,
                 _ => 0.15f
             };
 
@@ -179,6 +198,7 @@ namespace PrivateIsland
                     FootstepSurface.Grass => SynthesizeGrassStep(t, progress, variantIndex, primaryNoise, crispNoise),
                     FootstepSurface.Snow => SynthesizeSnowStep(t, progress, variantIndex, primaryNoise, crispNoise),
                     FootstepSurface.Wet => SynthesizeWetStep(t, progress, variantIndex, primaryNoise, crispNoise),
+                    FootstepSurface.Wood => SynthesizeWoodStep(t, progress, variantIndex, primaryNoise, crispNoise),
                     _ => 0f
                 };
 
@@ -224,6 +244,17 @@ namespace PrivateIsland
             return lowSquish + squelch + splash + drip;
         }
 
+        private static float SynthesizeWoodStep(float time, float progress, int variantIndex, float primaryNoise, float crispNoise)
+        {
+            float thumpEnvelope = Envelope(progress, 0.008f, 3.4f);
+            float tapEnvelope = Envelope(progress, 0.014f, 6f);
+            float body = Mathf.Sin((122f + (variantIndex * 10f)) * Mathf.PI * 2f * time) * thumpEnvelope * 0.11f;
+            float knock = Mathf.Sin((610f + (variantIndex * 28f)) * Mathf.PI * 2f * time) * tapEnvelope * 0.045f;
+            float scuff = primaryNoise * thumpEnvelope * 0.08f;
+            float clack = crispNoise * tapEnvelope * 0.05f;
+            return body + knock + scuff + clack;
+        }
+
         private static float Envelope(float progress, float attackPortion, float decayPower)
         {
             progress = Mathf.Clamp01(progress);
@@ -241,6 +272,11 @@ namespace PrivateIsland
 
         private FootstepSurface ResolveSurface()
         {
+            if (IsInsideHouse())
+            {
+                return FootstepSurface.Wood;
+            }
+
             ResolveEnvironmentManager();
             if (worldEnvironmentManager == null)
             {
@@ -306,6 +342,7 @@ namespace PrivateIsland
                 FootstepSurface.Grass => grassStepClips,
                 FootstepSurface.Snow => snowStepClips,
                 FootstepSurface.Wet => wetStepClips,
+                FootstepSurface.Wood => woodStepClips,
                 _ => grassStepClips
             };
         }
@@ -318,9 +355,32 @@ namespace PrivateIsland
                     return ref snowStepIndex;
                 case FootstepSurface.Wet:
                     return ref wetStepIndex;
+                case FootstepSurface.Wood:
+                    return ref woodStepIndex;
                 default:
                     return ref grassStepIndex;
             }
+        }
+
+        private bool IsInsideHouse()
+        {
+            Vector3 origin = transform.position + Vector3.up * 0.4f;
+            if (!Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 2.2f, ~0, QueryTriggerInteraction.Ignore))
+            {
+                return false;
+            }
+
+            if (hit.collider == null)
+            {
+                return false;
+            }
+
+            if (hit.collider.GetComponentInParent<IslandWalkableSurface>() == null)
+            {
+                return false;
+            }
+
+            return hit.collider.gameObject.name.Contains("InteriorWalkableFloor");
         }
     }
 }

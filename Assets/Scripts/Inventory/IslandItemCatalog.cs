@@ -11,6 +11,7 @@ namespace PrivateIsland
         public const string CoconutId = "coconut";
         public const string WoodId = "wood";
         public const string MapId = "treasure_map";
+        public const string HiddenNoteId = "hidden_note";
         public const string CompassId = "compass";
         public const string TorchId = "torch";
         public const string CanteenId = "canteen";
@@ -22,6 +23,7 @@ namespace PrivateIsland
             [CoconutId] = new ItemDefinition(CoconutId, "Coconut", new Color(0.45f, 0.28f, 0.15f), new Color(0.62f, 0.44f, 0.25f), new Color(0.18f, 0.1f, 0.06f), ItemVisualKind.Coconut),
             [WoodId] = new ItemDefinition(WoodId, "Wood", new Color(0.46f, 0.3f, 0.16f), new Color(0.75f, 0.56f, 0.34f), new Color(0.24f, 0.14f, 0.08f), ItemVisualKind.Wood),
             [MapId] = new ItemDefinition(MapId, "Treasure Map", new Color(0.93f, 0.85f, 0.58f), new Color(0.85f, 0.2f, 0.18f), new Color(0.57f, 0.39f, 0.18f), ItemVisualKind.Map),
+            [HiddenNoteId] = new ItemDefinition(HiddenNoteId, "Hidden Note", new Color(0.94f, 0.89f, 0.72f), new Color(0.67f, 0.5f, 0.24f), new Color(0.34f, 0.22f, 0.11f), ItemVisualKind.Map),
             [CompassId] = new ItemDefinition(CompassId, "Compass", new Color(0.22f, 0.45f, 0.73f), new Color(0.91f, 0.29f, 0.23f), new Color(0.88f, 0.88f, 0.9f), ItemVisualKind.Compass),
             [TorchId] = new ItemDefinition(TorchId, "Torch", new Color(0.58f, 0.35f, 0.14f), new Color(1f, 0.62f, 0.18f), new Color(1f, 0.92f, 0.54f), ItemVisualKind.Torch),
             [CanteenId] = new ItemDefinition(CanteenId, "Canteen", new Color(0.18f, 0.54f, 0.68f), new Color(0.74f, 0.87f, 0.95f), new Color(0.11f, 0.16f, 0.2f), ItemVisualKind.Canteen)
@@ -29,6 +31,7 @@ namespace PrivateIsland
 
         private static readonly Dictionary<string, Sprite> IconCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, Material> MaterialCache = new Dictionary<string, Material>(StringComparer.OrdinalIgnoreCase);
+        private const string RockAssetResourcePath = "Nature/Rock_Medium_1";
 
         public static bool TryGetDefinition(string itemId, out ItemDefinition definition)
         {
@@ -215,15 +218,91 @@ namespace PrivateIsland
 
         private static void BuildRock(Transform parent, ItemDefinition definition)
         {
+            if (TryBuildRockFromNatureAsset(parent))
+            {
+                return;
+            }
+
             Material stoneMaterial = GetMaterial($"{definition.Id}_stone", definition.PrimaryColor, 0.06f);
             Material brightFacet = GetMaterial($"{definition.Id}_facet", definition.SecondaryColor, 0.08f);
             Material darkFacet = GetMaterial($"{definition.Id}_shadow", definition.AccentColor, 0.04f);
 
-            CreatePart(parent, "Core", PrimitiveType.Cube, stoneMaterial, new Vector3(0f, 0.16f, 0f), new Vector3(12f, 18f, -8f), new Vector3(0.34f, 0.2f, 0.24f));
-            CreatePart(parent, "RearMass", PrimitiveType.Cube, darkFacet, new Vector3(-0.11f, 0.14f, -0.05f), new Vector3(-18f, 26f, 14f), new Vector3(0.18f, 0.16f, 0.16f));
-            CreatePart(parent, "FrontMass", PrimitiveType.Capsule, stoneMaterial, new Vector3(0.1f, 0.15f, 0.06f), new Vector3(10f, -20f, 22f), new Vector3(0.14f, 0.14f, 0.16f));
-            CreatePart(parent, "TopPlate", PrimitiveType.Cube, brightFacet, new Vector3(0.03f, 0.24f, 0.01f), new Vector3(24f, 30f, 16f), new Vector3(0.18f, 0.04f, 0.12f));
-            CreatePart(parent, "Shard", PrimitiveType.Cube, darkFacet, new Vector3(-0.04f, 0.22f, 0.11f), new Vector3(-12f, 44f, 12f), new Vector3(0.1f, 0.08f, 0.06f));
+            CreatePart(parent, "PileBase", PrimitiveType.Cube, darkFacet, new Vector3(0f, 0.055f, 0f), new Vector3(0f, 18f, 0f), new Vector3(0.36f, 0.08f, 0.28f));
+            CreatePart(parent, "StoneA", PrimitiveType.Cube, stoneMaterial, new Vector3(-0.13f, 0.1f, -0.05f), new Vector3(8f, 24f, -6f), new Vector3(0.16f, 0.12f, 0.12f));
+            CreatePart(parent, "StoneB", PrimitiveType.Cube, stoneMaterial, new Vector3(0.08f, 0.11f, 0.03f), new Vector3(-6f, 38f, 8f), new Vector3(0.15f, 0.11f, 0.11f));
+            CreatePart(parent, "StoneC", PrimitiveType.Cube, brightFacet, new Vector3(0.02f, 0.14f, -0.09f), new Vector3(14f, 12f, 16f), new Vector3(0.12f, 0.09f, 0.09f));
+            CreatePart(parent, "StoneD", PrimitiveType.Cube, darkFacet, new Vector3(0.15f, 0.09f, 0.11f), new Vector3(-10f, 30f, -12f), new Vector3(0.11f, 0.08f, 0.09f));
+            CreatePart(parent, "StoneE", PrimitiveType.Cube, brightFacet, new Vector3(-0.02f, 0.12f, 0.1f), new Vector3(12f, 44f, -4f), new Vector3(0.1f, 0.08f, 0.08f));
+            CreatePart(parent, "StoneF", PrimitiveType.Cube, stoneMaterial, new Vector3(-0.17f, 0.08f, 0.08f), new Vector3(-8f, 16f, 10f), new Vector3(0.1f, 0.07f, 0.09f));
+        }
+
+        private static bool TryBuildRockFromNatureAsset(Transform parent)
+        {
+            GameObject rockPrefab = Resources.Load<GameObject>(RockAssetResourcePath);
+            if (rockPrefab == null)
+            {
+                return false;
+            }
+
+            CreateRockChunk(parent, rockPrefab, "RockChunkA", new Vector3(-0.12f, 0.055f, -0.02f), new Vector3(-4f, 18f, 6f), new Vector3(0.11f, 0.11f, 0.11f));
+            CreateRockChunk(parent, rockPrefab, "RockChunkB", new Vector3(0.08f, 0.06f, 0.04f), new Vector3(3f, -28f, -5f), new Vector3(0.1f, 0.1f, 0.1f));
+            CreateRockChunk(parent, rockPrefab, "RockChunkC", new Vector3(0.01f, 0.08f, -0.08f), new Vector3(8f, 42f, 10f), new Vector3(0.08f, 0.08f, 0.08f));
+            CreateRockChunk(parent, rockPrefab, "RockChunkD", new Vector3(-0.04f, 0.045f, 0.11f), new Vector3(-2f, 64f, -6f), new Vector3(0.072f, 0.072f, 0.072f));
+            return true;
+        }
+
+        private static void CreateRockChunk(Transform parent, GameObject prefab, string name, Vector3 localPosition, Vector3 localEulerAngles, Vector3 localScale)
+        {
+            GameObject chunk = UnityEngine.Object.Instantiate(prefab, parent, false);
+            chunk.name = name;
+            chunk.transform.localPosition = localPosition;
+            chunk.transform.localRotation = Quaternion.Euler(localEulerAngles);
+            chunk.transform.localScale = localScale;
+            StripPhysicsComponents(chunk);
+        }
+
+        private static void StripPhysicsComponents(GameObject root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                if (colliders[i] == null)
+                {
+                    continue;
+                }
+
+                if (Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(colliders[i]);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(colliders[i]);
+                }
+            }
+
+            Rigidbody[] rigidbodies = root.GetComponentsInChildren<Rigidbody>(true);
+            for (int i = 0; i < rigidbodies.Length; i++)
+            {
+                if (rigidbodies[i] == null)
+                {
+                    continue;
+                }
+
+                if (Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(rigidbodies[i]);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(rigidbodies[i]);
+                }
+            }
         }
 
         private static void BuildCoconut(Transform parent, ItemDefinition definition)

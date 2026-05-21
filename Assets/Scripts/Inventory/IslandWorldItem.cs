@@ -253,15 +253,21 @@ namespace PrivateIsland
             cachedRigidbody.angularDamping = 1.4f;
             cachedRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
             stationaryTime = 0f;
+            cachedRigidbody.useGravity = simulatePhysics;
 
-            if (!simulatePhysics)
+            if (simulatePhysics)
+            {
+                cachedRigidbody.isKinematic = false;
+                return;
+            }
+
+            if (!cachedRigidbody.isKinematic)
             {
                 cachedRigidbody.linearVelocity = Vector3.zero;
                 cachedRigidbody.angularVelocity = Vector3.zero;
             }
 
-            cachedRigidbody.useGravity = simulatePhysics;
-            cachedRigidbody.isKinematic = !simulatePhysics;
+            cachedRigidbody.isKinematic = true;
         }
 
         private void UpdateCollider()

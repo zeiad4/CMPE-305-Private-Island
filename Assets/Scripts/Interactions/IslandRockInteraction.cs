@@ -16,7 +16,7 @@ namespace PrivateIsland
 
         public void Configure(float interactionRadius, float scale)
         {
-            looseStoneCount = Mathf.Clamp(Mathf.RoundToInt(scale * 1.35f), 4, 7);
+            looseStoneCount = Mathf.Clamp(Mathf.RoundToInt(scale * 1.6f), 6, 10);
             SetInteractionPrompt("Press E or F to mine the rock");
             SetInteractionRadius(interactionRadius);
             SetFocusHeight(Mathf.Max(0.8f, scale * 0.48f));
@@ -62,7 +62,8 @@ namespace PrivateIsland
 
             IslandInteractionPromptUI promptUI = IslandInteractionPromptUI.GetOrCreate();
             IslandActionToolVisual toolVisual = IslandActionToolVisual.GetOrCreate();
-            toolVisual?.ShowTool(IslandActionToolVisual.ToolKind.Pickaxe);
+            Vector3 strikeTarget = ResolveStrikeTarget(interactor);
+            toolVisual?.ShowTool(IslandActionToolVisual.ToolKind.Pickaxe, strikeTarget);
 
             float elapsed = 0f;
             int lastHitIndex = -1;
@@ -73,6 +74,7 @@ namespace PrivateIsland
                 promptUI.ShowProgress("Mining rock...", progress);
 
                 float strikePhase = Mathf.Repeat(elapsed, 1f);
+                toolVisual?.SetAimTarget(strikeTarget);
                 toolVisual?.UpdateSwing(strikePhase, 1f);
 
                 int hitIndex = Mathf.FloorToInt(elapsed);
@@ -116,28 +118,29 @@ namespace PrivateIsland
             }
 
             Vector3 center = bounds.center;
-            float radius = Mathf.Max(bounds.extents.x, bounds.extents.z) * 0.8f;
+            float radius = Mathf.Max(bounds.extents.x, bounds.extents.z) * 0.4f;
+            float spawnY = bounds.min.y + 0.03f;
 
             for (int i = 0; i < looseStoneCount; i++)
             {
                 float angle = (360f / Mathf.Max(1, looseStoneCount)) * i;
-                float spread = radius * Mathf.Lerp(0.16f, 0.54f, (i + 1f) / (looseStoneCount + 1f));
+                float spread = radius * Mathf.Lerp(0.06f, 0.42f, (i + 1f) / (looseStoneCount + 1f));
                 Vector3 ringOffset = Quaternion.Euler(0f, angle + Random.Range(-18f, 18f), 0f) * new Vector3(spread, 0f, 0f);
-                Vector3 spawnPosition = center + ringOffset + Vector3.up * Mathf.Max(0.4f, bounds.extents.y * 0.75f);
+                Vector3 spawnPosition = new Vector3(center.x + ringOffset.x, spawnY, center.z + ringOffset.z);
 
                 IslandWorldItem looseStone = IslandWorldItem.SpawnWorldItem(
                     IslandItemCatalog.RockId,
                     1,
                     spawnPosition,
-                    Random.rotation,
+                    Quaternion.Euler(0f, Random.Range(0f, 360f), 0f),
                     false,
-                    true,
-                    (ringOffset.normalized * Random.Range(0.12f, 0.28f)) + Vector3.up * Random.Range(0.1f, 0.22f),
-                    new Vector3(Random.Range(-0.1f, 0.1f), Random.Range(-0.22f, 0.22f), Random.Range(-0.1f, 0.1f)));
+                    false,
+                    Vector3.zero,
+                    Vector3.zero);
 
                 if (looseStone != null)
                 {
-                    looseStone.SetWorldScale(Vector3.one * Random.Range(1.85f, 2.35f));
+                    looseStone.SetWorldScale(Vector3.one * Random.Range(0.72f, 0.94f));
                 }
             }
         }
@@ -169,6 +172,34 @@ namespace PrivateIsland
             transform.localPosition = restingPosition;
             transform.localRotation = restingRotation;
             reactionRoutine = null;
+        }
+
+        private Vector3 ResolveStrikeTarget(Transform interactor)
+        {
+            Vector3 samplePoint = interactor != null
+                ? interactor.position + Vector3.up * 1.05f
+                : transform.position + Vector3.up * 1.05f;
+
+            Collider rockCollider = GetComponent<Collider>();
+            if (rockCollider != null)
+            {
+                Vector3 closestPoint = rockCollider.ClosestPoint(samplePoint);
+                if ((closestPoint - samplePoint).sqrMagnitude > 0.0001f)
+                {
+                    return closestPoint + Vector3.up * 0.08f;
+                }
+            }
+
+            if (IslandInteractionUtility.TryGetCompositeBounds(transform, out Bounds bounds))
+            {
+                Vector3 fallback = bounds.ClosestPoint(samplePoint);
+                if ((fallback - samplePoint).sqrMagnitude > 0.0001f)
+                {
+                    return fallback + Vector3.up * 0.08f;
+                }
+            }
+
+            return transform.position + Vector3.up * Mathf.Max(0.6f, transform.lossyScale.y * 0.36f);
         }
     }
 }

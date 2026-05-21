@@ -23,12 +23,14 @@ namespace PrivateIsland
         private float viewYaw;
         private bool hasViewYaw;
         private bool inputEnabled = true;
+        private bool movementEnabled = true;
         private bool isGrounded = true;
         private Vector3 currentVelocity;
         private Vector3 previousPosition;
         private float verticalVelocity;
 
         public bool IsInputEnabled => inputEnabled;
+        public bool IsMovementEnabled => movementEnabled;
         public bool IsGrounded => isGrounded;
         public Vector3 CurrentVelocity => currentVelocity;
 
@@ -49,6 +51,11 @@ namespace PrivateIsland
         public void SetInputEnabled(bool enabled)
         {
             inputEnabled = enabled;
+        }
+
+        public void SetMovementEnabled(bool enabled)
+        {
+            movementEnabled = enabled;
         }
 
         public void TeleportTo(Vector3 position, float yaw)
@@ -80,6 +87,15 @@ namespace PrivateIsland
             }
 
             if (!inputEnabled)
+            {
+                SnapToGround(true);
+                ApplyViewRotation();
+                currentVelocity = Vector3.zero;
+                previousPosition = transform.position;
+                return;
+            }
+
+            if (!movementEnabled)
             {
                 SnapToGround(true);
                 ApplyViewRotation();
